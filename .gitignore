@@ -1,5 +1,7 @@
 # Python
 venv_239AS/*
+*/.ipynb_checkpoints
+*/.ipynb_checkpoints/*
 
 # Prerequisites
 *.d
