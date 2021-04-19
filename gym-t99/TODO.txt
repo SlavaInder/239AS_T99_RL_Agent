@@ -14,6 +14,7 @@ On coplete publising instructions, see
 https://medium.com/@joel.barmettler/how-to-upload-your-python-package-to-pypi-65edc5fe9c56
 https://towardsdatascience.com/how-to-publish-a-python-package-to-pypi-7be9dd5d6dcd
 
+https://medium.com/@kfraser_63104/%EF%B8%8F-custom-openai-gym-environment-bfce3103fd54
 
 
 Creatig your own environment for gym:

@@ -16,3 +16,9 @@ Short instructions on installation:
 4. Install libraries
 	pip install -r requirements.txt
    important note: make sure that all libraries you are installing are listed in requirements.txt. This will help others to avoid issues while running your code.
+
+Current tasks:
+	1. Write a default code for creating SimpleDQN - a fully connected NN, for which we can set the number and the width of layers arbitry. Return Logits for actions
+	2. Create simple training cycle: playing until getting signal to stop, then train from randomly selected samples.
+	3. Create a code for classic tetris. Code needs to be expandable. Work in cooperation with 4.
+	4. Create a visualisation for classic tetris. Code needs to be expandable. Work in cooperation with 3.
