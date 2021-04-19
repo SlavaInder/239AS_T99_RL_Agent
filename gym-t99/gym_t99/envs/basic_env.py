@@ -2,12 +2,13 @@ import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
 
-class T99(gym.Env):
+
+class Basic(gym.Env):
     metadata = {'render.modes': ['human']}
 
 
     def __init__(self):
-        print('init t99')
+        print('init basic')
 
 
     def step(self, action):
