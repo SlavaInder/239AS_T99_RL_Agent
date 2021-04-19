@@ -1,0 +1,21 @@
+1. Write your python module and save it under a directory.
+2. Create the setup.py file with necessary information.
+3. Choose a LICENSE and provide a README file for your project.
+4. Generate the distribution archives on local machine.
+5. Try installing the package on your local machine.
+6. Publish the package to the TestPyPi repository to check if all works well.
+7. Finally, publish the package to the PyPi repository.
+
+
+don't forget to add license
+
+
+On coplete publising instructions, see
+https://medium.com/@joel.barmettler/how-to-upload-your-python-package-to-pypi-65edc5fe9c56
+https://towardsdatascience.com/how-to-publish-a-python-package-to-pypi-7be9dd5d6dcd
+
+
+
+Creatig your own environment for gym:
+
+https://github.com/openai/gym/blob/master/docs/creating-environments.md

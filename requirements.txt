@@ -2,3 +2,4 @@ Pillow
 Numpy
 matplotlib
 torch
+gym
