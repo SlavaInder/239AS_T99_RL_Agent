@@ -6,7 +6,7 @@ class T99(gym.Env):
     metadata = {'render.modes': ['human']}
 
 
-    def __init__(self):
+    def __init__(self, num_players=2):
         # here we should download saved weights of previous player
         #
 
