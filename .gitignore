@@ -2,6 +2,7 @@
 venv_239AS/*
 */.ipynb_checkpoints
 */.ipynb_checkpoints/*
+*.pyc
 
 # Prerequisites
 *.d
