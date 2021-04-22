@@ -1,4 +1,5 @@
 from gym.envs.registration import register
+from gym_t99.envs.state import *
 
 register(
     id='basic-v0',
