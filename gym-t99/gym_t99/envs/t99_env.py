@@ -3,20 +3,31 @@ from gym import error, spaces, utils
 from gym.utils import seeding
 
 class T99(gym.Env):
-    metadata = {'render.modes': ['human']}
+    metadata = {'render.modes': ['human', 'debug']}
 
 
-    def __init__(self, num_players=2):
-        # here we should download saved weights of previous player
-        #
+    def __init__(self, enemy, num_players=2):
+        """
+        function to initialize gym environment. Action space is provided for reference
+            0   -   do nothing
+            1   -   choose random attack strategy
+            2   -   choose to attack one that is closed to KO
+            3   -   choose to attack one that has the highest KOs number
+            4   -   choose to attack everybody who attacks you
+            5   -   swap a piece
+            6   -   move left
+            7   -   move right
+            8   -   turn clockwise 90 degrees
+            9   -   turn counter clockwise 90 degrees
 
-        # TODO: Discuss in meeting. 
-        self.action_space = None
-        self.observation_space = None
-        self.state = None
-
-
-        print('init t99 2')
+        :param enemy: a strategy able to produce actions based on observation; note, that this is not the strategy
+                                    we are training, instead, this is a strategy we are training against. Usually,
+                                    this is the previous iteration of AI
+        :param num_players: number of competing agents (ideally, 99) in the game
+        """
+        self.action_space = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        self.enemy = enemy
+        self.state = State99(num_players)
 
 
     def step(self, action):
@@ -36,9 +47,8 @@ class T99(gym.Env):
         return next_state, reward, done, info
 
 
-
     def reset(self):
-        print('reset')
+        self.state = State99()
 
 
     def render(self, mode='human'):
