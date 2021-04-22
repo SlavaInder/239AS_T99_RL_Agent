@@ -84,7 +84,7 @@ class Piece:
         # copy a piece from template
         self.matrix = Piece.shapes[roll].copy()
         # sample a random x coordinate for a piece
-        random.randint(2, high=BOARD_WIDTH)
+        self.x = np.random.randint(2, high=BOARD_WIDTH)
         # set coordinate. It is constant for all new pieces
         self.y = 3
 
@@ -131,7 +131,7 @@ class Player99:
 
     def __init__(self):
         # spawn current piece of a player
-        self.piece = Piece()
+        self.piece_current = Piece()
         # spawn a swap piece
         self.piece_swap = Piece()
         # spawn queue
