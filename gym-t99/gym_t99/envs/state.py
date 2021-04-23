@@ -137,7 +137,7 @@ class Player99:
         # spawn queue
         self.piece_queue =[Piece() for _ in range(5)]
         # initialize board
-        self.board = np.zeros((BOARD_HEIGHT + 4, BOARD_WIDTH + 4))
+        self.board = np.zeros((BOARD_HEIGHT + 4, BOARD_WIDTH + 4), dtype=np.int16)
         # set up borders
         self.board[:, 0:2] = 10
         self.board[BOARD_HEIGHT+2:BOARD_HEIGHT+4, :] = 10
@@ -166,10 +166,11 @@ class State99:
         self.players = [Player99() for _ in range(num_players)]
 
 
-    def observe(self):
+    def observe(self, player_id):
         """
         function to produce information needed for agent to make decision
 
+        :param int player_id:
         :return: fill when decide what to observe
         """
         pass
