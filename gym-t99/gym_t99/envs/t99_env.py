@@ -2,6 +2,8 @@ import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
 from .state import *
+import pygame
+import os 
 
 class T99(gym.Env):
     """
@@ -36,6 +38,8 @@ class T99(gym.Env):
         self.action_space = [1, 2, 3, 4, 5, 6, 7, 8, 9]
         self.enemy = enemy
         self.state = State99(num_players)
+
+        self.pygame_started = False
 
 
     def step(self, action):
@@ -94,15 +98,29 @@ class T99(gym.Env):
                 # append the list with their board
                 frame.append(temp_board)
 
-        elif debug=="human":
+        elif mode == "human":
             # TODO:  Ian's code here
+            if not self.pygame_started:
+                self.init_render()
+            
+            self.window.fill((0,30,255))
+            pygame.display.update()
+            pygame.image.save(self.window, "screenshot.png")
             frame=None
 
         return frame
 
+    def init_render(self):
+        os.environ["SDL_VIDEODRIVER"] = "dummy" #Makes window not appear
+        pygame.init()
+        self.window = pygame.display.set_mode((1000, 500))
+        self.pygame_started = True
+
 
     def close(self):
-        print('close')
+        if self.pygame_started:
+            pygame.display.quit()
+            pygame.quit()
 
 
     def _apply(self, board, piece):
