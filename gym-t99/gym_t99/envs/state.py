@@ -84,7 +84,8 @@ class Piece:
         # copy a piece from template
         self.matrix = Piece.shapes[roll].copy()
         # sample a random x coordinate for a piece
-        self.x = np.random.randint(2, high=BOARD_WIDTH)
+        # make sure that it does not collide with the borders
+        self.x = np.random.randint(3, high=BOARD_WIDTH-1)
         # set coordinate. It is constant for all new pieces
         self.y = 3
 

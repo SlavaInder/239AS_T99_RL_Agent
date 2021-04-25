@@ -57,7 +57,7 @@ class T99(gym.Env):
         for event in self.state.event_queue:
             self._process(event)
         # step 2: process all actions
-        for i in range(self.state.players):
+        for i in range(len(self.state.players)):
             # if this is the first player, controlled by AI
             if i==0:
                 # use action passed in command option of step
@@ -65,11 +65,11 @@ class T99(gym.Env):
             # if this player is controlled by environment AI
             else:
                 # first, generate action
-                action = enemy.action(self.state.observe(i))
+                action = self.enemy.action(self.state.observe(i))
                 # and then apply it
                 self._apply_action(i, action)
         # step 3: update all player's with in-game mechanics
-        for i in range(self.state.players):
+        for i in range(len(self.state.players)):
             self._update_player(i)
 
         return next_state, reward, done, info
