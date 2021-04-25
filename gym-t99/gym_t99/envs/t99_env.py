@@ -36,6 +36,10 @@ class T99(gym.Env):
         self.action_space = [1, 2, 3, 4, 5, 6, 7, 8, 9]
         self.enemy = enemy
         self.state = State99(num_players)
+        # counter of steps made
+        self.current_step = 0
+        # how many moves per environment update a player can do
+        self.update_frequency = 3
 
 
     def step(self, action):
@@ -90,7 +94,7 @@ class T99(gym.Env):
             # for each player
             for i in range(len(self.state.players)):
                 # copy the board together with piece
-                temp_board = self._apply(self.state.players[i].board, self.state.players[i].piece_current)
+                temp_board = self._apply(self.state.players[i].board.copy(), self.state.players[i].piece_current)
                 # append the list with their board
                 frame.append(temp_board)
 
@@ -105,27 +109,9 @@ class T99(gym.Env):
         print('close')
 
 
-    def _apply(self, board, piece):
-        # stick piece to the board, and return new board
-        board[piece.y-2:piece.y+3, piece.x-2:piece.x+3] += piece.matrix
-        return board
-
-    def _collision(self, board, piece):
-        # check whether at leat one element of the piece overlaps wit board
-        collided = np.sum(board[piece.y-2:piece.y+3, piece.x-2:piece.x+3]+piece.matrix)
-        if collided > 0:
-            return True
-        else:
-            return False
-
     def _process_event(self, event):
         # function that processes the following events: player's attack, ???
         pass
-
-    def _update_player(self, player_id):
-        # function that drops player's piece by 1, clears lines if this drop is impossible,
-        pass
-
 
     def _apply_action(self, player_id, action):
         """
@@ -140,3 +126,47 @@ class T99(gym.Env):
             pass
         # and so on and so forth
 
+
+    def _update_player(self, player_id):
+        """
+        function that drops player's piece by 1 if this drop is possible
+        if the drop is impossible, it first adds the current piece to the board; then it iteratively deletes lines that
+        can be cleared and shifts all lines on the top to fill missing row; then the attack event is created depending
+        on how the lines were cleared.
+        """
+        # try to move piece to the bottom
+        success = self._move(self.state.players[player_id].board,
+                             self.state.players[player_id].piece_current,
+                             0, 1)
+        print(success)
+        # if succeeded, return; else, clean lines
+        pass
+
+
+    def _apply(self, board, piece):
+        # stick piece to the board, and return new board
+        board[piece.y-2:piece.y+3, piece.x-2:piece.x+3] += piece.matrix
+        return board
+
+    def _collision(self, board, piece):
+        # check whether at leat one element of the piece overlaps wit board
+        collided = np.sum(board[piece.y-2:piece.y+3, piece.x-2:piece.x+3]*piece.matrix)
+        if collided > 0:
+            return True
+        else:
+            return False
+
+    def _move(self, board, piece, dx, dy):
+        # moves a piece if possible. returns True if successfull, False if the move is impossible
+        # update coordinates
+        piece.x += dx
+        piece.y += dy
+        # check if the elements collided
+        if self._collision(board, piece):
+            # if collided, return coordinates back and exit
+            piece.x -= dx
+            piece.y -= dy
+            return False
+        else:
+            # if successfull, exit
+            return True

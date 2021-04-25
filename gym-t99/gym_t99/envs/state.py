@@ -87,7 +87,7 @@ class Piece:
         # make sure that it does not collide with the borders
         self.x = np.random.randint(3, high=BOARD_WIDTH-1)
         # set coordinate. It is constant for all new pieces
-        self.y = 3
+        self.y = 2
 
 
 class Player99:
