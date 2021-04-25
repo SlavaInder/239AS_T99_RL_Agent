@@ -2,8 +2,11 @@ import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
 from .state import *
+
+from os import environ
+environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide" #Silence the pygame printing
 import pygame
-import os 
+
 
 class T99(gym.Env):
     """
@@ -83,9 +86,10 @@ class T99(gym.Env):
         self.state = State99()
 
 
-    def render(self, mode='human'):
+    def render(self, mode='human',show_window=False):
         """
         :param str mode: mode in which rendering works. If debug, returns numpy matrices for each player
+        :param bool show_window: assuming mode='human', says whether to show the window or not
         :return object frame: depending on mode, renders a human-visible screenshot of the game
         """
         if mode=="debug":
@@ -97,32 +101,30 @@ class T99(gym.Env):
                 temp_board = self._apply(self.state.players[i].board, self.state.players[i].piece_current)
                 # append the list with their board
                 frame.append(temp_board)
+            
+            if self.pygame_started: #Will let us switch between debug or human mode in same session if desired
+                self.renderer.quit()
+                self.pygame_started = False
 
         elif mode == "human":
             # TODO:  Ian's code here
             if not self.pygame_started:
-                self.init_render()
+                height , width = self.state.players[0].board.shape #Get dimensions of board
+                self.renderer = Renderer(height,width,show_window=show_window)
+                self.pygame_started = True
             
-            self.window.fill((0,30,255))
-            pygame.display.update()
-            pygame.image.save(self.window, "screenshot.png")
+            self.renderer.draw_screen(self.state)
+            self.renderer.save_screen_as_image()
+            
             frame=None
 
         return frame
 
-    def init_render(self):
-        os.environ["SDL_VIDEODRIVER"] = "dummy" #Makes window not appear
-        pygame.init()
-        self.window = pygame.display.set_mode((1000, 500))
-        self.pygame_started = True
-
 
     def close(self):
         if self.pygame_started:
-            pygame.display.quit()
-            pygame.quit()
-
-
+            self.renderer.quit()
+            
     def _apply(self, board, piece):
         # stick piece to the board, and return new board
         board[piece.y-2:piece.y+3, piece.x-2:piece.x+3] += piece.matrix
@@ -157,4 +159,105 @@ class T99(gym.Env):
         elif action == 2:
             pass
         # and so on and so forth
+
+
+#TODO: 
+    #Create a class in the this class, Renderer that handles all the utility of creating the image
+    #The only constant it will use is the size of a side of the block
+        #Later this can be made into some sort of step function with respect to the screen size
+    #Using this block size can then half it or quarter it for other non-primary boards
+
+class Renderer():
+
+    #Colors
+    BLACK = (0, 0, 0)
+    RED = (255, 0, 0)
+    GREEN = (0, 255, 0)
+    BLUE = (0, 0, 255)
+    ORANGE = (255, 127, 0)
+    CYAN = (0, 183, 235)
+    MAGENTA = (255, 0, 255)
+    YELLOW = (255, 255, 0)
+    WHITE = (255, 255, 255)
+    GREY = (90, 90, 90)
+    TRANS_WHITE = (255, 255, 255, 50)
+
+    #Piece to Colors Map, from : https://tetris.fandom.com/wiki/Tetromino
+    piece_colors = {
+        0 : BLACK, 
+        1 : CYAN,
+        2 : BLUE,
+        3 : ORANGE,
+        4 : MAGENTA,
+        5 : RED,
+        6 : GREEN,
+        7 : YELLOW,
+        10 : GREY
+    }
+
+
+    def __init__(self,board_height,board_width,show_window=False,gridsize=30):
+        self.GRIDSIZE = gridsize
+        self.BOARD_HEIGHT = board_height 
+        self.BOARD_WIDTH = board_width
+        self.BOARD_HEIGHT_PX = self.BOARD_HEIGHT * self.GRIDSIZE
+        self.BOARD_WIDTH_PX = self.BOARD_WIDTH * self.GRIDSIZE
+
+        #Headless means the window will not be shown
+        #The window does not work with my Jupyter notebook
+        
+        if not show_window:
+            environ["SDL_VIDEODRIVER"] = "dummy" #Makes window not appear
+        
+        pygame.init()
+        self.window = pygame.display.set_mode((self.BOARD_WIDTH_PX , self.BOARD_HEIGHT_PX))
+
+    def draw_screen(self,state):
+        self.window.fill(Renderer.BLACK)
+        self.draw_grid()
+        self.draw_all_blocks(state.players[0].board)
+        pygame.display.update()
+        
+    def draw_grid(self):
+        '''
+        Draws the grid on the screen for the pieces
+        '''
+        for i in range(self.BOARD_WIDTH+1):
+            pygame.draw.line(self.window, Renderer.GREY, (i * self.GRIDSIZE, 0), (i * self.GRIDSIZE, self.BOARD_HEIGHT_PX), 1)
+
+        for i in range(self.BOARD_HEIGHT+1):
+            pygame.draw.line(self.window, Renderer.GREY, (0, i * self.GRIDSIZE), (self.BOARD_WIDTH_PX, i * self.GRIDSIZE), 1)
+
+    def draw_all_blocks(self,board):
+        for row in range(0,board.shape[0]):
+            for col in range(0,board.shape[1]):
+                self.draw_block(col,row,board[row][col])
+
+
+    def draw_block(self,grid_x,grid_y,piece_int):
+        '''
+        Takes a grid_x (column) and a grid_y (row), and the int of the piece
+        Draws the piece ont the window
+        '''
+        if piece_int == 0: #Skip empty squares
+            return 
+        x_px = grid_x * self.GRIDSIZE
+        y_px = grid_y * self.GRIDSIZE
+        clr = Renderer.piece_colors[piece_int]
+        pygame.draw.rect(self.window, clr, (x_px, y_px, self.GRIDSIZE-2, self.GRIDSIZE-2), 0)
+        
+        if piece_int != 10: #Add highlight around all non-white pieces
+            print("didd it")
+            pygame.draw.rect(self.window, Renderer.WHITE, (x_px, y_px, self.GRIDSIZE, self.GRIDSIZE), 1) #Outline
+    
+    def save_screen_as_image(self):
+        pygame.image.save(self.window, "screenshot.png")
+
+    def quit(self):
+        '''
+        Quits pygame
+        Not currently working for some reason
+        '''
+        pygame.display.quit()
+        pygame.quit()
 
