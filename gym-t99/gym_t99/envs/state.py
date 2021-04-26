@@ -84,9 +84,10 @@ class Piece:
         # copy a piece from template
         self.matrix = Piece.shapes[roll].copy()
         # sample a random x coordinate for a piece
-        self.x = np.random.randint(2, high=BOARD_WIDTH)
+        # make sure that it does not collide with the borders
+        self.x = np.random.randint(3, high=BOARD_WIDTH-1)
         # set coordinate. It is constant for all new pieces
-        self.y = 3
+        self.y = 2
 
 
 class Player99:
@@ -115,13 +116,17 @@ class Player99:
 
     10 10  0  0  0  0  0  0  0  0  0  0 10 10
     10 10  0  0  0  0  0  0  0  x  0  0 10 10
-    10 10  0  0  0  0  0  0  x  x  0  0 10 10
-    10 10  0  0  0  0  0  0  x  0  0  0 10 10
+    10 10  0  0  0  0  0  0  x  x  0  0 10 10   this part of the board can not be seen by players
+    10 10  0  0  0  0  0  0  x  0  0  0 10 10   pieces spawn there to avoid conflicts at spawn
+    10 10  0  0  0  0  0  0  0  0  0  0 10 10
+    -----------------------------------------   if pieces cramped up in the board cross this line, the game is over
     10 10  0  0  0  0  0  0  0  0  0  0 10 10
     10 10  0  0  0  0  0  0  0  0  0  0 10 10
     10 10  0  0  0  0  0  0  0  0  0  0 10 10
     10 10  0  0  0  0  0  0  0  0  0  0 10 10
     10 10  0  0  0  0  0  0  0  0  0  0 10 10
+    10 10  0  0  0  0  0  0  0  0  0  0 10 10   the game happens there
+    10 10  0  0  0  0  0  0  0  0  0  0 10 10   boards can be shown or hidden, this is optional
     10 10  0  0  0  0  0  0  0  0  0  0 10 10
     10 10  0  0  0  0  0  0  0  0  0  0 10 10
     10 10  0  0  0  0  0  0  0  0  0  0 10 10
@@ -137,10 +142,10 @@ class Player99:
         # spawn queue
         self.piece_queue =[Piece() for _ in range(5)]
         # initialize board
-        self.board = np.zeros((BOARD_HEIGHT + 4, BOARD_WIDTH + 4), dtype=np.int16)
+        self.board = np.zeros((BOARD_HEIGHT + 7, BOARD_WIDTH + 4), dtype=np.int16)
         # set up borders
         self.board[:, 0:2] = 10
-        self.board[BOARD_HEIGHT+2:BOARD_HEIGHT+4, :] = 10
+        self.board[BOARD_HEIGHT+5:BOARD_HEIGHT+7, :] = 10
         self.board[:, BOARD_WIDTH+2:BOARD_WIDTH+4] = 10
         # init the number of players kicked out by this particular one
         self.KOs = 0
