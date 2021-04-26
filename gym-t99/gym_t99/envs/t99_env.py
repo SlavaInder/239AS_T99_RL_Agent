@@ -202,6 +202,8 @@ class Renderer():
         self.BOARD_WIDTH = board_width
         self.BOARD_HEIGHT_PX = self.BOARD_HEIGHT * self.GRIDSIZE
         self.BOARD_WIDTH_PX = self.BOARD_WIDTH * self.GRIDSIZE
+        self.SHADOW_SIZE_PX = max(1,self.GRIDSIZE // 15)
+        self.LINE_WIDTH = max(1,gridsize // 30)
 
         #Headless means the window will not be shown
         #The window does not work with my Jupyter notebook
@@ -223,10 +225,10 @@ class Renderer():
         Draws the grid on the screen for the pieces
         '''
         for i in range(self.BOARD_WIDTH+1):
-            pygame.draw.line(self.window, Renderer.GREY, (i * self.GRIDSIZE, 0), (i * self.GRIDSIZE, self.BOARD_HEIGHT_PX), 1)
+            pygame.draw.line(self.window, Renderer.GREY, (i * self.GRIDSIZE, 0), (i * self.GRIDSIZE, self.BOARD_HEIGHT_PX), self.LINE_WIDTH)
 
         for i in range(self.BOARD_HEIGHT+1):
-            pygame.draw.line(self.window, Renderer.GREY, (0, i * self.GRIDSIZE), (self.BOARD_WIDTH_PX, i * self.GRIDSIZE), 1)
+            pygame.draw.line(self.window, Renderer.GREY, (0, i * self.GRIDSIZE), (self.BOARD_WIDTH_PX, i * self.GRIDSIZE), self.LINE_WIDTH)
 
     def draw_all_blocks(self,board):
         for row in range(0,board.shape[0]):
@@ -244,11 +246,10 @@ class Renderer():
         x_px = grid_x * self.GRIDSIZE
         y_px = grid_y * self.GRIDSIZE
         clr = Renderer.piece_colors[piece_int]
-        pygame.draw.rect(self.window, clr, (x_px, y_px, self.GRIDSIZE-2, self.GRIDSIZE-2), 0)
+        pygame.draw.rect(self.window, clr, (x_px, y_px, self.GRIDSIZE-self.SHADOW_SIZE_PX, self.GRIDSIZE-self.SHADOW_SIZE_PX), 0)
         
         if piece_int != 10: #Add highlight around all non-white pieces
-            print("didd it")
-            pygame.draw.rect(self.window, Renderer.WHITE, (x_px, y_px, self.GRIDSIZE, self.GRIDSIZE), 1) #Outline
+            pygame.draw.rect(self.window, Renderer.WHITE, (x_px, y_px, self.GRIDSIZE, self.GRIDSIZE), self.SHADOW_SIZE_PX) #Outline
     
     def save_screen_as_image(self):
         pygame.image.save(self.window, "screenshot.png")
@@ -256,8 +257,7 @@ class Renderer():
     def quit(self):
         '''
         Quits pygame
-        Not currently working for some reason
+        Not currently working on my machine for some reason
         '''
         pygame.display.quit()
         pygame.quit()
-

@@ -62,7 +62,7 @@ class TestSuite(unittest.TestCase):
 
     #To add pieces:
     #temp_board = self._apply_piece(self.state.players[i].board.copy(), self.state.players[i].piece_current)
-
+    
 
 
 if __name__ == '__main__':
