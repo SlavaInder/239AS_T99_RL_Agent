@@ -36,6 +36,8 @@ class T99(gym.Env):
         self.action_space = [1, 2, 3, 4, 5, 6, 7, 8, 9]
         self.enemy = enemy
         self.state = State99(num_players)
+        # an array to keep track of who is in the game
+        self.active_players = np.ones(num_players).astype(bool)
         # counter of steps made
         self.current_step = 0
         # how many moves per environment update a player can do
@@ -54,7 +56,7 @@ class T99(gym.Env):
         """
         reward = None
         next_state = None
-        done = None
+        done = False
         info = {}
 
         # TODO: disable players who already lost
@@ -64,19 +66,27 @@ class T99(gym.Env):
             self._process(event)
         # step 2: process all actions
         for i in range(len(self.state.players)):
-            # if this is the first player, controlled by AI
-            if i==0:
+            # if this is the first player, controlled by AI, and it is still active
+            if i == 0 and self.active_players[i]:
                 # use action passed in command option of step
                 self._apply_action(i, action)
-            # if this player is controlled by environment AI
-            else:
+            # if this player is controlled by environment AI, and it is still active
+            elif self.active_players[i]:
                 # first, generate action
                 action = self.enemy.action(self.state.observe(i))
                 # and then apply it
                 self._apply_action(i, action)
         # step 3: update all player's with in-game mechanics
         for i in range(len(self.state.players)):
-            self._update_player(i)
+            # if the player is still active
+            if self.active_players[i]:
+                self._update_player(i)
+        # if either the AI has lost or all its enemies lost
+        if (not self.active_players[0]) or \
+                (len(self.active_players) > 1 and np.prod(self.active_players[1:])):
+            # then we are done for thi
+            # s round
+            done = True
 
         return next_state, reward, done, info
 
@@ -136,14 +146,14 @@ class T99(gym.Env):
         can be cleared and shifts all lines on the top to fill missing row; then the attack event is created depending
         on how the lines were cleared. After everything is up to date, we check if the player lost
         """
+        # calculate board's width
+        b_height, b_width = self.state.players[player_id].board.shape
         # try to move piece to the bottom
         success = self._move(self.state.players[player_id].board,
                              self.state.players[player_id].piece_current,
                              0, 1)
         # if drop is impossible, start update procedure;
         if not success:
-            # calculate board's width
-            b_width = self.state.players[player_id].board.shape[1]
             # add piece to the board
             self.state.players[player_id].board = self._apply_piece(self.state.players[player_id].board,
                                                                     self.state.players[player_id].piece_current)
@@ -153,19 +163,34 @@ class T99(gym.Env):
             # save the number of lines cleared to calculate attack power
             attack = np.sum(cleared)
             # for each cleared line
-            i = len(cleared) - 3
+            i = len(cleared) - 4
             while i > 4:
                 # if the line needs to be cleared
                 if cleared[i] > 0:
                     # clear the line
-                    self.state.players[player_id].board[i, 2:b_width-2] = 0
-                    i -= 1
+                    self.state.players[player_id].board[i, 3:b_width-3] = 0
+                    cleared[i] = 0
+                    # shift all lines from the top by 1
+                    self.state.players[player_id].board[6:i+1, 3:b_width-3] = \
+                        self.state.players[player_id].board[5:i, 3:b_width-3]
+                    cleared[6:i+1] = cleared[5:i]
+                    # clear the top line, which does not have pieces after shift
+                    self.state.players[player_id].board[5, 3:b_width-3] = 0
+                    cleared[5] = 0
                 else:
                     i -= 1
-
+            # TODO: add attack event here
 
             # update piece at hand
             self._next_piece(self.state.players[player_id])
+
+        # check if player lost
+        if np.sum(self.state.players[player_id].board.astype(bool)[0:5, 3:b_width-3]) > 0:
+            # assign the position in the leaderboard
+            position = len(self.active_players) - np.sum(np.where(self.active_players is True, 1, 0))
+            self.active_players[player_id].place = position
+            # if so, update the list of active players
+            self.active_players[player_id] = False
 
 
     def _apply_piece(self, board, piece):
