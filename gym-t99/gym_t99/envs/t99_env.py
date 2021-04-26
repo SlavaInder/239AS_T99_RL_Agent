@@ -57,6 +57,8 @@ class T99(gym.Env):
         done = None
         info = {}
 
+        # TODO: disable players who already lost
+
         # step 1: process all events
         for event in self.state.event_queue:
             self._process(event)
@@ -94,12 +96,12 @@ class T99(gym.Env):
             # for each player
             for i in range(len(self.state.players)):
                 # copy the board together with piece
-                temp_board = self._apply(self.state.players[i].board.copy(), self.state.players[i].piece_current)
+                temp_board = self._apply_piece(self.state.players[i].board.copy(), self.state.players[i].piece_current)
                 # append the list with their board
                 frame.append(temp_board)
 
-        elif debug=="human":
-            # TODO:  Ian's code here
+        elif mode=="human":
+            # TODO: Ian's code here
             frame=None
 
         return frame
@@ -129,28 +131,51 @@ class T99(gym.Env):
 
     def _update_player(self, player_id):
         """
-        function that drops player's piece by 1 if this drop is possible
+        function that waits drops player's piece by 1 if this drop is possible;
         if the drop is impossible, it first adds the current piece to the board; then it iteratively deletes lines that
         can be cleared and shifts all lines on the top to fill missing row; then the attack event is created depending
-        on how the lines were cleared.
+        on how the lines were cleared. After everything is up to date, we check if the player lost
         """
         # try to move piece to the bottom
         success = self._move(self.state.players[player_id].board,
                              self.state.players[player_id].piece_current,
                              0, 1)
-        print(success)
-        # if succeeded, return; else, clean lines
-        pass
+        # if drop is impossible, start update procedure;
+        if not success:
+            # calculate board's width
+            b_width = self.state.players[player_id].board.shape[1]
+            # add piece to the board
+            self.state.players[player_id].board = self._apply_piece(self.state.players[player_id].board,
+                                                                    self.state.players[player_id].piece_current)
+            # check which lines are cleared
+            cleared = np.prod(self.state.players[player_id].board.astype(bool), axis=1)
+            print(cleared)
+            # save the number of lines cleared to calculate attack power
+            attack = np.sum(cleared)
+            # for each cleared line
+            i = len(cleared) - 3
+            while i > 4:
+                # if the line needs to be cleared
+                if cleared[i] > 0:
+                    # clear the line
+                    self.state.players[player_id].board[i, 2:b_width-2] = 0
+                    i -= 1
+                else:
+                    i -= 1
 
 
-    def _apply(self, board, piece):
+            # update piece at hand
+            self._next_piece(self.state.players[player_id])
+
+
+    def _apply_piece(self, board, piece):
         # stick piece to the board, and return new board
         board[piece.y-2:piece.y+3, piece.x-2:piece.x+3] += piece.matrix
         return board
 
     def _collision(self, board, piece):
         # check whether at leat one element of the piece overlaps wit board
-        collided = np.sum(board[piece.y-2:piece.y+3, piece.x-2:piece.x+3]*piece.matrix)
+        collided = np.sum(board[piece.y-2:piece.y+3, piece.x-2:piece.x+3].astype(bool)*piece.matrix.astype(bool))
         if collided > 0:
             return True
         else:
@@ -170,3 +195,9 @@ class T99(gym.Env):
         else:
             # if successfull, exit
             return True
+
+    def _next_piece(self, player):
+        # change current piece
+        player.piece_current = player.piece_queue.pop(0)
+        # produce a new piece for the queue
+        player.piece_queue.append(Piece())
