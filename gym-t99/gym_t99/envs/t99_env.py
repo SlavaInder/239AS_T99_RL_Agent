@@ -33,7 +33,7 @@ class T99(gym.Env):
                                     this is the previous iteration of AI
         :param num_players: number of competing agents (ideally, 99) in the game
         """
-        self.action_space = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        self.action_space = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         self.enemy = enemy
         self.state = State99(num_players)
         # an array to keep track of who is in the game

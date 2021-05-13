@@ -1,4 +1,4 @@
-import numpy as np
+ import numpy as np
 
 
 # these global variables should NEVER be accessed outside of this file to avoid name conflicts
@@ -132,6 +132,7 @@ class Player99:
     10 10 10  0  0  0  0  0  0  0  0  0  0 10 10 10
     10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10
     10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10
+    10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10
     """
 
     def __init__(self):
@@ -178,4 +179,5 @@ class State99:
         :param int player_id:
         :return: fill when decide what to observe
         """
+        # return
         pass
