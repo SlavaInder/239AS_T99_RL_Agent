@@ -89,6 +89,12 @@ class Piece:
         # set coordinate. It is constant for all new pieces
         self.y = 2
 
+    def rotate_clockwise(self):
+        self.matrix = np.rot90(self.matrix, axes=(1, 0))
+
+    def rotate_counterclockwise(self):
+        self.matrix = np.rot90(self.matrix, axes=(0, 1))
+
 
 class Player99:
     """
