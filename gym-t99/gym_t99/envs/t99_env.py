@@ -131,11 +131,32 @@ class T99(gym.Env):
         :param action: the id of the action we have to perform
         """
         # go through all options of action id-s and perform them
-        if action == 1:
-            # fill your logic here
+
+        # Move piece left
+        if action == 6:
+            success = self._move(self.state.players[player_id].board,
+                             self.state.players[player_id].piece_current,
+                             -1, 0)
+        # Move piece right
+        elif action == 7:
+            success = self._move(self.state.players[player_id].board,
+                             self.state.players[player_id].piece_current,
+                             1, 0)
+        # Move piece clockwise 90 degrees
+        elif action == 8:
+            self._rotate_piece(self.state.players[player_id].board,
+                            self.state.players[player_id].piece_current,
+                            clockwise=True)
+
+        # Move piece counter clockwise 90 degrees
+        elif action == 9:
+            self._rotate_piece(self.state.players[player_id].board,
+                                self.state.players[player_id].piece_current,
+                                clockwise=False)
+        else:
             pass
-        elif action == 2:
-            pass
+
+        
         # and so on and so forth
 
 
@@ -220,6 +241,24 @@ class T99(gym.Env):
         else:
             # if successfull, exit
             return True
+
+    def _rotate_piece(self, board, piece, clockwise=True):
+        # rotates a piece clockwise if possible
+        if clockwise:
+            piece.rotate_clockwise()
+        else:
+            piece.rotate_counterclockwise()
+        # check if the elements collided
+        if self._collision(board, piece):
+            if clockwise:
+                piece.rotate_counterclockwise()
+            else:
+                piece.rotate_clockwise()
+            return False
+        else:
+            # if successfull, exit
+            return True
+
 
     def _next_piece(self, player):
         # change current piece
