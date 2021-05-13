@@ -1,4 +1,4 @@
- import numpy as np
+import numpy as np
 
 
 # these global variables should NEVER be accessed outside of this file to avoid name conflicts
@@ -89,7 +89,6 @@ class Piece:
         # set coordinate. It is constant for all new pieces
         self.y = 2
 
-
 class Player99:
     """
     Class representing all features specific to a player.
@@ -155,7 +154,7 @@ class Player99:
         # stores the number of steps until post
         self.incoming_garbage = []
         # init attack strategy
-        # out of 0, 1, 2, 3
+        # out of 1, 2, 3, 4
         self.attack_strategy = 1
 
 

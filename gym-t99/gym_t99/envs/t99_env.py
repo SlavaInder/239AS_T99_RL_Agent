@@ -13,6 +13,7 @@ class T99(gym.Env):
     """
     metadata = {'render.modes': ['human', 'debug']}
 
+    """            Public Methods here             """
 
     def __init__(self, enemy, num_players=2):
         """
@@ -43,7 +44,6 @@ class T99(gym.Env):
         # how many moves per environment update a player can do
         self.update_frequency = 3
 
-
     def step(self, action):
         """
         the function which makes one update of the environment. Ends with fixing    
@@ -63,7 +63,7 @@ class T99(gym.Env):
 
         # step 1: process all events
         for event in self.state.event_queue:
-            self._process(event)
+            self._process_event(event)
         # step 2: process all actions
         for i in range(len(self.state.players)):
             # if this is the first player, controlled by AI, and it is still active
@@ -88,12 +88,12 @@ class T99(gym.Env):
             # s round
             done = True
 
-        return next_state, reward, done, info
+        next_state = self._observed_state()
 
+        return next_state, reward, done, info
 
     def reset(self):
         self.state = State99()
-
 
     def render(self, mode='human'):
         """
@@ -116,10 +116,10 @@ class T99(gym.Env):
 
         return frame
 
-
     def close(self):
         print('close')
 
+    """            Main Loop Methods here             """
 
     def _process_event(self, event):
         # function that processes the following events: player's attack, ???
@@ -131,13 +131,36 @@ class T99(gym.Env):
         :param action: the id of the action we have to perform
         """
         # go through all options of action id-s and perform them
-        if action == 1:
-            # fill your logic here
-            pass
-        elif action == 2:
-            pass
-        # and so on and so forth
+        # choose attack strategy
+        if action in [1, 2, 3, 4]:
+            self.state.players[player_id].attack_strategy = action
+        # swap a piece
+        # note that after a piece was swapped, new piece starts at the top to avoid conflicts at collisions
+        # this means that after a piece was placed, swapped piece corrdinates return to the top
+        if action == 5:
+            self.state.players[player_id].piece_current, self.state.players[player_id].piece_swap = \
+                self.state.players[player_id].piece_swap, self.state.players[player_id].piece_current
+        # Move piece left
+        if action == 6:
+            success = self._move(self.state.players[player_id].board,
+                                 self.state.players[player_id].piece_current,
+                                 -1, 0)
+        # Move piece right
+        elif action == 7:
+            success = self._move(self.state.players[player_id].board,
+                                 self.state.players[player_id].piece_current,
+                                 1, 0)
+        # Move piece clockwise 90 degrees
+        elif action == 8:
+            self._rotate_piece(self.state.players[player_id].board,
+                               self.state.players[player_id].piece_current,
+                               clockwise=True)
 
+        # Move piece counter clockwise 90 degrees
+        elif action == 9:
+            self._rotate_piece(self.state.players[player_id].board,
+                               self.state.players[player_id].piece_current,
+                               clockwise=False)
 
     def _update_player(self, player_id):
         """
@@ -192,6 +215,7 @@ class T99(gym.Env):
             # if so, update the list of active players
             self.active_players[player_id] = False
 
+    """         Helper functions here           """
 
     def _apply_piece(self, board, piece):
         # stick piece to the board, and return new board
@@ -221,8 +245,44 @@ class T99(gym.Env):
             # if successfull, exit
             return True
 
+    def _rotate_piece(self, board, piece, clockwise=True):
+        # rotates a piece clockwise if possible
+        if clockwise:
+            piece.matrix = np.rot90(piece.matrix, axes=(1, 0))
+        else:
+            piece.matrix = np.rot90(piece.matrix, axes=(0, 1))
+        # check if the elements collided
+        if self._collision(board, piece):
+            if clockwise:
+                piece.matrix = np.rot90(piece.matrix, axes=(0, 1))
+            else:
+                piece.matrix = np.rot90(piece.matrix, axes=(1, 0))
+            return False
+        else:
+            # if successfull, exit
+            return True
+
+
     def _next_piece(self, player):
         # change current piece
         player.piece_current = player.piece_queue.pop(0)
         # produce a new piece for the queue
         player.piece_queue.append(Piece())
+
+
+    def _observed_state(self):
+        return_state = []
+        for i, player in enumerate(self.state.players):
+            # return everything related to the current player.
+            if i == 0:
+                return_state.append((self.state.players[i].board,
+                    self.state.players[i].piece_swap,
+                    self.state.players[i].KOs,
+                    self.state.players[i].incoming_garbage,
+                    self.state.players[i].place,
+                    self.state.players[i].attack_strategy))
+            # Otherwise return only the board and the number of badges (number of KOs in our case).
+            else:
+                return_state.append((self.state.players[i].board, self.state.players[i].KOs))
+
+        return return_state
