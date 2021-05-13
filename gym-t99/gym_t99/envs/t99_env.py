@@ -88,6 +88,8 @@ class T99(gym.Env):
             # s round
             done = True
 
+        next_state = self._observed_state()
+
         return next_state, reward, done, info
 
 
@@ -265,3 +267,21 @@ class T99(gym.Env):
         player.piece_current = player.piece_queue.pop(0)
         # produce a new piece for the queue
         player.piece_queue.append(Piece())
+
+    
+    def _observed_state(self):
+        return_state = []
+        for i, player in enumerate(self.state.players):
+            # return everything related to the current player.
+            if i == 0:
+                return_state.append((self.state.players[i].board, 
+                    self.state.players[i].piece_swap,
+                    self.state.players[i].KOs, 
+                    self.state.players[i].incoming_garbage, 
+                    self.state.players[i].place, 
+                    self.state.players[i].attack_strategy))
+            # Otherwise return only the board and the number of badges (number of KOs in our case).
+            else:
+                return_state.append((self.state.players[i].board, self.state.players[i].KOs))
+
+        return return_state
