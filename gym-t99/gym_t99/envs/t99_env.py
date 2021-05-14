@@ -111,7 +111,7 @@ class T99(gym.Env):
             if self.pygame_started: #Will let us switch between debug or human mode in same session if desired
                 self.renderer.quit()
                 self.pygame_started = False
-
+            
         elif mode == "human":
             # TODO:  Ian's code here
             if not self.pygame_started:
@@ -263,57 +263,121 @@ class Renderer():
         10 : GREY
     }
 
-    def __init__(self,players,show_window=False,gridsize=25):
+    
+    def __init__(self,players,show_window=False,gridsize=50):
         '''
         params:
-            players : list of type Player99, each of their boards will be drawn, with the first player drawn in the middle and larger
+            players : list of type Player99, should be all but the main player, each of their boards will be drawn, with the first player drawn in the middle and larger
             show_window : if true, will show the GUI in a window
             gridsize : int, is the size of each block in the primary board
         '''
+
+        #Set players
+        self.player = players[0]
+        self.npcs = players[1:]
+
+        #Get parameters of board
         self.BOARD_HEIGHT, self.BOARD_WIDTH = players[0].board.shape #Get dimensions of board
-        self.top_rows_ignore = 5 #How many ignores on the top to ignore
-        self.BOARD_HEIGHT -= self.top_rows_ignore
-        self.MAIN_BOARD_GRIDSIZE = gridsize #The only constant here
-        self.SECONDARY_BOARD_GRIDSIZE = int(self.MAIN_BOARD_GRIDSIZE // 2.5) #Gridsize of smaller boards
-        self.TOP_PADDING_PX, self.LEFT_PADDING_PX, self.RIGHT_PADDING_PX, self.BOTTOM_PADDING_PX, self.MIDDLE_PADDING  = 4 * self.MAIN_BOARD_GRIDSIZE, 4 * self.MAIN_BOARD_GRIDSIZE, 4 * self.MAIN_BOARD_GRIDSIZE, 4 * self.MAIN_BOARD_GRIDSIZE, 4 * self.MAIN_BOARD_GRIDSIZE
-        self.FULL_WIDTH_PX = self.LEFT_PADDING_PX + 2 * self.SECONDARY_BOARD_GRIDSIZE * self.BOARD_WIDTH + 2 * self.MIDDLE_PADDING + self.MAIN_BOARD_GRIDSIZE * self.BOARD_WIDTH + self.RIGHT_PADDING_PX
-        self.FULL_HEIGHT_PX = self.TOP_PADDING_PX + self.BOTTOM_PADDING_PX + self.BOARD_HEIGHT * self.MAIN_BOARD_GRIDSIZE
+        self.top_rows_ignore = 5 #How many rows on the top to ignore
+        self.num_walls_side, self.num_walls_bottom = Renderer.get_wall_sizes(self.player.board) #How many walls to ignore. We do this because walls can clutter
+        self.BOARD_HEIGHT = self.BOARD_HEIGHT  - self.top_rows_ignore - self.num_walls_bottom
+        self.BOARD_WIDTH = self.BOARD_WIDTH - 2 * self.num_walls_side
+
+        #Set pixel constants of board
+        self.MAIN_BOARD_GRIDSIZE = gridsize #The only constant here, the pixel size of the main board
+        self.SECONDARY_BOARD_GRIDSIZE = max(1,int(self.MAIN_BOARD_GRIDSIZE // 7)) #Gridsize of smaller boards
+        self.SMALL_PADDING_PX, self.MEDIUM_PADDING_PX, self.LARGE_PADDING_PX = 2 * self.SECONDARY_BOARD_GRIDSIZE, 4 * self.SECONDARY_BOARD_GRIDSIZE, self.MAIN_BOARD_GRIDSIZE
+        self.VERT_PADDING_PX, self.SIDE_PADDING_PX = self.LARGE_PADDING_PX, self.SMALL_PADDING_PX
+
+        #Set widths of important areas
+        self.NPC_WIDTH_PX = 7 * self.SECONDARY_BOARD_GRIDSIZE * self.BOARD_WIDTH + 6 * self.SMALL_PADDING_PX #Width of single side of NPCS
+        self.NPC_HEIGHT_PX = 7 * self.SECONDARY_BOARD_GRIDSIZE * self.BOARD_HEIGHT + 6 * self.MEDIUM_PADDING_PX #Width of single side of NPCS
         
+        self.PLAYER_WIDTH_PX = self.MAIN_BOARD_GRIDSIZE * self.BOARD_WIDTH #TODO: do this in a more programmtic way in the future, when player has its own rendering class
+        
+        #Set full dimensions of the board
+        self.FULL_WIDTH_PX = 2 * self.SIDE_PADDING_PX + 2 * self.MEDIUM_PADDING_PX + 2 * self.NPC_WIDTH_PX + self.PLAYER_WIDTH_PX
+        self.FULL_HEIGHT_PX = 2 * self.VERT_PADDING_PX + self.NPC_HEIGHT_PX
+        
+        #Create the window
+        #----------------
         if not show_window:
             environ["SDL_VIDEODRIVER"] = "dummy" #Makes window not appear
         
         pygame.init()
         pygame.display.set_caption('Tetris')
         self.window = pygame.display.set_mode((self.FULL_WIDTH_PX , self.FULL_HEIGHT_PX ))
-         
-        self.board_renderers = [] #Will hold all of our board renderers class
+        
+        #Create the NPC Boards
+        #---------------------
+        self.npc_board_renderers = [] 
+        
+        #Left half
+        x_init = self.SIDE_PADDING_PX
+        y_init = self.VERT_PADDING_PX
+        x_step = self.SECONDARY_BOARD_GRIDSIZE * self.BOARD_WIDTH + self.SMALL_PADDING_PX
+        y_step = self.SECONDARY_BOARD_GRIDSIZE * self.BOARD_HEIGHT + self.MEDIUM_PADDING_PX
+        n = 0
+        for x in range(7):
+            for y in range(7):
+                if n >= len(self.npcs):
+                    continue
+                x_orig = x_init + x_step * x
+                y_orig = y_init + y_step * y
+                new_board = BoardRenderer(self.npcs[n], x_orig, y_orig, self.SECONDARY_BOARD_GRIDSIZE, self.window, self.top_rows_ignore, self.num_walls_side, self.num_walls_bottom)
+                self.npc_board_renderers.append(new_board)
+                n += 1
 
-        MAIN_X = self.LEFT_PADDING_PX + self.SECONDARY_BOARD_GRIDSIZE * self.BOARD_WIDTH + self.MIDDLE_PADDING
-        main_board = BoardRenderer(players[0].board, MAIN_X, self.TOP_PADDING_PX,self.MAIN_BOARD_GRIDSIZE,self.window,self.top_rows_ignore)
-        self.board_renderers.append(main_board)
-        
-        if len(players) > 1:
-            left_board = BoardRenderer(players[1].board,self.LEFT_PADDING_PX, self.TOP_PADDING_PX,self.SECONDARY_BOARD_GRIDSIZE,self.window,self.top_rows_ignore)
-            self.board_renderers.append(left_board)
-        if len(players) > 2:
-            right_board = BoardRenderer(players[2].board,MAIN_X + self.BOARD_WIDTH * self.MAIN_BOARD_GRIDSIZE + self.MIDDLE_PADDING, self.TOP_PADDING_PX,self.SECONDARY_BOARD_GRIDSIZE,self.window,self.top_rows_ignore)
-            self.board_renderers.append(right_board)
-        if len(players) > 3:
-            left2_board = BoardRenderer(players[3].board,self.LEFT_PADDING_PX, self.TOP_PADDING_PX + self.BOARD_HEIGHT * self.SECONDARY_BOARD_GRIDSIZE + self.MIDDLE_PADDING,self.SECONDARY_BOARD_GRIDSIZE,self.window,self.top_rows_ignore)
-            self.board_renderers.append(left2_board)
-        if len(players) > 4:
-            right2_board = BoardRenderer(players[4].board,MAIN_X + self.BOARD_WIDTH * self.MAIN_BOARD_GRIDSIZE + self.MIDDLE_PADDING, self.TOP_PADDING_PX + self.BOARD_HEIGHT * self.SECONDARY_BOARD_GRIDSIZE + self.MIDDLE_PADDING,self.SECONDARY_BOARD_GRIDSIZE,self.window,self.top_rows_ignore)
-            self.board_renderers.append(right2_board)
-        
+        #Right half
+        x_init = self.FULL_WIDTH_PX - self.NPC_WIDTH_PX - self.SIDE_PADDING_PX
+        y_init = self.VERT_PADDING_PX
+        x_step = self.SECONDARY_BOARD_GRIDSIZE * self.BOARD_WIDTH + self.SMALL_PADDING_PX
+        y_step = self.SECONDARY_BOARD_GRIDSIZE * self.BOARD_HEIGHT + self.MEDIUM_PADDING_PX
+        for x in range(7):
+            for y in range(7):
+                if n >= len(self.npcs):
+                    continue
+                x_orig = x_init + x_step * x
+                y_orig = y_init + y_step * y
+                new_board = BoardRenderer(self.npcs[n], x_orig, y_orig, self.SECONDARY_BOARD_GRIDSIZE, self.window, self.top_rows_ignore, self.num_walls_side, self.num_walls_bottom)
+                self.npc_board_renderers.append(new_board)
+                n += 1
+
+        #Create the Players Board
+        #-----------------------
+        x_orig = self.SIDE_PADDING_PX + self.NPC_WIDTH_PX + self.MEDIUM_PADDING_PX
+        y_orig = self.VERT_PADDING_PX
+        self.player_board = PlayerRenderer(self.player,x_orig,y_orig,self.MAIN_BOARD_GRIDSIZE,self.window, self.top_rows_ignore, self.num_walls_side, self.num_walls_bottom)
+
+
+    @staticmethod
+    def get_wall_sizes(board):
+        '''
+        Takes a board, and returns a tuple of the number of walls on the sides and on the bottom
+        '''
+        side_num = 0
+        i = 0
+        while board[int(board.shape[0]/2),i] == 10:
+            side_num += 1
+            i += 1
+
+        i = board.shape[0]-1
+        bot_num = 0
+        while board[i,int(board.shape[1]/2)] == 10:
+            bot_num += 1
+            i -= 1
+        return side_num, bot_num 
             
     def draw_screen(self):
         '''
         Draws the screen
         '''
         self.window.fill(Renderer.BLACK)
-        for board_renderer in self.board_renderers:
+        for board_renderer in self.npc_board_renderers:
             board_renderer.draw_board()
-            
+        
+        self.player_board.draw_board()
+        #TODO: Add section to draw main player's board
         pygame.display.update()
 
     
@@ -334,8 +398,9 @@ class Renderer():
 class BoardRenderer():
         '''
         Handles the rendering of each individual board
+        TODO : Handle if boards player is even alive!!
         '''
-        def __init__(self, board, origin_x_px, origin_y_px, gridsize, window, top_rows_ignore):
+        def __init__(self, player, origin_x_px, origin_y_px, gridsize, window, top_rows_ignore, num_walls_side, num_walls_bottom):
             '''
             params:
                 board : 2D np matrix like described in Player99 class
@@ -344,27 +409,65 @@ class BoardRenderer():
                 gridsize : int, pixel size of each block
                 window : the pygame window which to draw on
                 top_rows_ignore : int, number of rows on top to not draw
+                num_walls_side : int, number of rows on side, we will not be drawing these
+                num_walls_bottom : int, number of rows on bottom, we will not be drawing these
             '''
+            self.player = player
             self.window = window
-            self.board = board
+            self.board = player.board
             self.top_rows_ignore = top_rows_ignore
+            self.num_walls_side , self.num_walls_bottom = num_walls_side, num_walls_bottom
             self.GRIDSIZE = gridsize
-            self.BOARD_HEIGHT, self.BOARD_WIDTH = board.shape #Get dimensions of board
-            self.BOARD_HEIGHT -= self.top_rows_ignore #Ignore top 5 rows
+            self.BOARD_HEIGHT, self.BOARD_WIDTH = self.board.shape #Get dimensions of board
+            self.BOARD_HEIGHT = self.BOARD_HEIGHT - self.top_rows_ignore - self.num_walls_bottom #Ignore top 5 rows
+            self.BOARD_WIDTH -= 2 * self.num_walls_side
             self.BOARD_HEIGHT_PX = self.BOARD_HEIGHT * self.GRIDSIZE
             self.BOARD_WIDTH_PX = self.BOARD_WIDTH * self.GRIDSIZE
             self.SHADOW_SIZE_PX = max(1,int(self.GRIDSIZE // 15))
             self.LINE_WIDTH = max(1,int(gridsize // 30))
             self.ORIGIN_X_PX = origin_x_px
             self.ORIGIN_Y_PX = origin_y_px
-        
+            
+            self.fontsize = int(self.GRIDSIZE*4)
+            self.arial = pygame.font.SysFont('Arial Black', self.fontsize)
+
+
         def draw_board(self):
             '''
             Draws a board
             '''
-            self.draw_grid()
-            self.draw_all_blocks()
         
+            self.draw_outline()
+            if self.player.place != None:
+                self.draw_elimination()
+            else:
+                self.draw_all_blocks()
+        
+        def draw_elimination(self):
+            string1 = "K.O"
+            if len(str(self.player.place)) == 1:
+                string2 = "  " + str(self.player.place)
+            else:
+                string2 = " " + str(self.player.place)
+            place_text = self.arial.render(string1, True, Renderer.WHITE)
+            place_text2 = self.arial.render(string2, True, Renderer.WHITE)
+            x1 = int(self.BOARD_WIDTH_PX/8) + self.ORIGIN_X_PX
+            y1 = int(self.BOARD_HEIGHT_PX/5) + self.ORIGIN_Y_PX
+            x2 = x1
+            y2 = y1 + self.fontsize
+            self.window.blit(place_text,(x1,y1))
+            self.window.blit(place_text2,(x2,y2))
+        
+        def draw_outline(self):
+            top_left = (self.ORIGIN_X_PX - 1, self.ORIGIN_Y_PX - 1)
+            top_right = (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX, self.ORIGIN_Y_PX-1)
+            bottom_left = (self.ORIGIN_X_PX-1, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX )
+            bottom_right = (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX)
+            pygame.draw.line(self.window, Renderer.GREY, top_left, bottom_left, self.LINE_WIDTH)
+            pygame.draw.line(self.window, Renderer.GREY, top_left, top_right, self.LINE_WIDTH)
+            pygame.draw.line(self.window, Renderer.GREY, top_right, bottom_right, self.LINE_WIDTH)
+            pygame.draw.line(self.window, Renderer.GREY, bottom_left, bottom_right, self.LINE_WIDTH)
+
         def draw_grid(self):
             '''
             Draws the background grid on the screen for the pieces
@@ -372,16 +475,16 @@ class BoardRenderer():
             for i in range(1,self.BOARD_WIDTH):
                 pygame.draw.line(self.window, Renderer.GREY, (self.ORIGIN_X_PX + i * self.GRIDSIZE, self.ORIGIN_Y_PX), (self.ORIGIN_X_PX + i * self.GRIDSIZE, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX), self.LINE_WIDTH)
 
-            for i in range(0,self.BOARD_HEIGHT):
+            for i in range(1,self.BOARD_HEIGHT):
                 pygame.draw.line(self.window, Renderer.GREY, (self.ORIGIN_X_PX, self.ORIGIN_Y_PX + i * self.GRIDSIZE), (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX , self.ORIGIN_Y_PX + i * self.GRIDSIZE), self.LINE_WIDTH)
 
         def draw_all_blocks(self):
             '''
             Draws all blocks, careful to ignore the rows which we do not want to draw
             '''
-            for row in range(self.top_rows_ignore,self.board.shape[0]): 
-                for col in range(0,self.board.shape[1]):
-                    self.draw_block(col,row-self.top_rows_ignore,self.board[row][col])
+            for row in range(self.top_rows_ignore,self.board.shape[0]-self.num_walls_bottom): 
+                for col in range(self.num_walls_side,self.board.shape[1]-self.num_walls_side):
+                    self.draw_block(col-self.num_walls_side,row-self.top_rows_ignore,self.board[row][col])
         
         def draw_block(self,grid_x,grid_y,piece_int):
             '''
@@ -393,7 +496,49 @@ class BoardRenderer():
             x_px = grid_x * self.GRIDSIZE + self.ORIGIN_X_PX
             y_px = grid_y * self.GRIDSIZE + self.ORIGIN_Y_PX
             clr = Renderer.piece_colors[piece_int]
-            pygame.draw.rect(self.window, clr, (x_px, y_px, self.GRIDSIZE-self.SHADOW_SIZE_PX, self.GRIDSIZE-self.SHADOW_SIZE_PX), 0)
+            #pygame.draw.rect(self.window, clr, (x_px, y_px, self.GRIDSIZE-(2*self.SHADOW_SIZE_PX), self.GRIDSIZE-(2*self.SHADOW_SIZE_PX)), 0)
+            pygame.draw.rect(self.window, clr, (x_px, y_px, self.GRIDSIZE, self.GRIDSIZE), 0)
             
-            if piece_int != 10: #Add highlight around all non-white pieces
-                pygame.draw.rect(self.window, Renderer.WHITE, (x_px, y_px, self.GRIDSIZE, self.GRIDSIZE), self.SHADOW_SIZE_PX) #Outline
+            #if piece_int != 10: #Add highlight around all non-grey pieces
+            #    pygame.draw.rect(self.window, Renderer.WHITE, (x_px, y_px, self.GRIDSIZE, self.GRIDSIZE), self.SHADOW_SIZE_PX) #Outline
+
+class PlayerRenderer(BoardRenderer):
+    def __init__(self, player, origin_x_px, origin_y_px, gridsize, window, top_rows_ignore, num_walls_side, num_walls_bottom):
+            '''
+            params:
+                board : 2D np matrix like described in Player99 class
+                origin_x_px : int, origin of this board x in pixels
+                origin_y_px : int, origin of this board y in pixels
+                gridsize : int, pixel size of each block
+                window : the pygame window which to draw on
+                top_rows_ignore : int, number of rows on top to not draw
+                num_walls_side : int, number of rows on side, we will not be drawing these
+                num_walls_bottom : int, number of rows on bottom, we will not be drawing these
+            '''
+            super().__init__(player, origin_x_px, origin_y_px, gridsize, window, top_rows_ignore, num_walls_side, num_walls_bottom)
+            
+    def draw_board(self):
+            '''
+            Draws a board
+            '''
+            self.draw_outline()
+            if self.player.place != None:
+                self.draw_elimination()
+            else:
+                self.draw_grid()
+                self.draw_all_blocks()
+            
+    def draw_block(self,grid_x,grid_y,piece_int):
+            '''
+            Takes a grid_x (column) and a grid_y (row), and the int of the piece
+            Draws the piece onto the window
+            '''
+            if piece_int == 0: #Skip empty squares
+                return 
+            x_px = grid_x * self.GRIDSIZE + self.ORIGIN_X_PX
+            y_px = grid_y * self.GRIDSIZE + self.ORIGIN_Y_PX
+            clr = Renderer.piece_colors[piece_int]
+            pygame.draw.rect(self.window, clr, (x_px, y_px, self.GRIDSIZE-(2*self.SHADOW_SIZE_PX), self.GRIDSIZE-(2*self.SHADOW_SIZE_PX)), 0)
+            
+            if piece_int != 10: #Add highlight around all non-grey pieces
+                pygame.draw.rect(self.window, Renderer.WHITE, (x_px, y_px, self.GRIDSIZE, self.GRIDSIZE), self.SHADOW_SIZE_PX) #Outline 
