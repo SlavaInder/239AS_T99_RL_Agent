@@ -170,7 +170,6 @@ class State99:
         # the list which holds information about all players.
         self.players = [Player99() for _ in range(num_players)]
 
-
     def observe(self, player_id):
         """
         function to produce information needed for agent to make decision

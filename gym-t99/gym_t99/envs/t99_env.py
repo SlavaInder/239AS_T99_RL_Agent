@@ -182,7 +182,6 @@ class T99(gym.Env):
                                                                     self.state.players[player_id].piece_current)
             # check which lines are cleared
             cleared = np.prod(self.state.players[player_id].board.astype(bool), axis=1)
-            print(cleared)
             # save the number of lines cleared to calculate attack power
             attack = np.sum(cleared)
             # for each cleared line
@@ -206,6 +205,9 @@ class T99(gym.Env):
 
             # update piece at hand
             self._next_piece(self.state.players[player_id])
+            # reset coordinates of the swap piece
+            self.state.players[player_id].piece_swap.y = 3
+            self.state.players[player_id].piece_swap.x = np.random.randint(5, high=b_width-5)
 
         # check if player lost
         if np.sum(self.state.players[player_id].board.astype(bool)[0:5, 3:b_width-3]) > 0:
@@ -245,7 +247,7 @@ class T99(gym.Env):
             # if successfull, exit
             return True
 
-    def _rotate_piece(self, board, piece, clockwise=True):
+    def _rotate_piece(self, board, piece, clockwise=True):  
         # rotates a piece clockwise if possible
         if clockwise:
             piece.matrix = np.rot90(piece.matrix, axes=(1, 0))
