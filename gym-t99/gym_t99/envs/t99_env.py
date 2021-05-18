@@ -247,7 +247,7 @@ class T99(gym.Env):
             # if successfull, exit
             return True
 
-    def _rotate_piece(self, board, piece, clockwise=True):  
+    def _rotate_piece(self, board, piece, clockwise=True):
         # rotates a piece clockwise if possible
         if clockwise:
             piece.matrix = np.rot90(piece.matrix, axes=(1, 0))
