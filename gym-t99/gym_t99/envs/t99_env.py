@@ -20,6 +20,7 @@ class T99(gym.Env):
     """
     metadata = {'render.modes': ['human', 'debug']}
 
+    """            Public Methods here             """
 
     def __init__(self, enemy, num_players=2):
         """
@@ -40,9 +41,11 @@ class T99(gym.Env):
                                     this is the previous iteration of AI
         :param num_players: number of competing agents (ideally, 99) in the game
         """
-        self.action_space = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        self.action_space = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         self.enemy = enemy
         self.state = State99(num_players)
+        # an array to keep track of who is in the game
+        self.active_players = np.ones(num_players).astype(bool)
         # counter of steps made
         self.current_step = 0
         # how many moves per environment update a player can do
@@ -63,41 +66,51 @@ class T99(gym.Env):
         """
         reward = None
         next_state = None
-        done = None
+        done = False
         info = {}
 
         # TODO: disable players who already lost
 
         # step 1: process all events
         for event in self.state.event_queue:
-            self._process(event)
+            self._process_event(event)
         # step 2: process all actions
         for i in range(len(self.state.players)):
-            # if this is the first player, controlled by AI
-            if i==0:
+            # if this is the first player, controlled by AI, and it is still active
+            if i == 0 and self.active_players[i]:
                 # use action passed in command option of step
                 self._apply_action(i, action)
-            # if this player is controlled by environment AI
-            else:
+            # if this player is controlled by environment AI, and it is still active
+            elif self.active_players[i]:
                 # first, generate action
                 action = self.enemy.action(self.state.observe(i))
                 # and then apply it
                 self._apply_action(i, action)
         # step 3: update all player's with in-game mechanics
         for i in range(len(self.state.players)):
-            self._update_player(i)
+            # if the player is still active
+            if self.active_players[i]:
+                self._update_player(i)
+        # if either the AI has lost or all its enemies lost
+        if (not self.active_players[0]) or \
+                (len(self.active_players) > 1 and np.prod(self.active_players[1:])):
+            # then we are done for thi
+            # s round
+            done = True
+
+        next_state = self._observed_state()
 
         return next_state, reward, done, info
-
 
     def reset(self):
         self.state = State99()
 
 
-    def render(self, mode='human',show_window=False):
+    def render(self, mode='human',show_window=False,image_path="screenshot.png"):
         """
         :param str mode: mode in which rendering works. If debug, returns numpy matrices for each player
         :param bool show_window: assuming mode='human', says whether to show the window or not
+        :param str image_path: when mode='human', this is the relative path the screenshot will be saved to
         :return object frame: depending on mode, renders a human-visible screenshot of the game
         """
         if mode=="debug":
@@ -115,18 +128,16 @@ class T99(gym.Env):
                 self.pygame_started = False
             
         elif mode == "human":
-            # TODO:  Ian's code here
             if not self.pygame_started:
                 self.renderer = Renderer(self.state.players,show_window=show_window)
                 self.pygame_started = True
             
             self.renderer.draw_screen()
-            self.renderer.save_screen_as_image()
+            self.renderer.save_screen_as_image(image_path)
             
             frame=None
 
         return frame
-
 
     def close(self):
         if self.pygame_started:
@@ -137,13 +148,7 @@ class T99(gym.Env):
         board[piece.y-2:piece.y+3, piece.x-2:piece.x+3] += piece.matrix
         return board
 
-    def _collision(self, board, piece):
-        # check whether at leat one element of the piece overlaps wit board
-        collided = np.sum(board[piece.y-2:piece.y+3, piece.x-2:piece.x+3]+piece.matrix)
-        if collided > 0:
-            return True
-        else:
-            return False
+    """            Main Loop Methods here             """
 
     def _process_event(self, event):
         # function that processes the following events: player's attack, ???
@@ -155,13 +160,37 @@ class T99(gym.Env):
         :param action: the id of the action we have to perform
         """
         # go through all options of action id-s and perform them
-        if action == 1:
-            # fill your logic here
-            pass
-        elif action == 2:
-            pass
-        # and so on and so forth
-    
+        # choose attack strategy
+        if action in [1, 2, 3, 4]:
+            self.state.players[player_id].attack_strategy = action
+        # swap a piece
+        # note that after a piece was swapped, new piece starts at the top to avoid conflicts at collisions
+        # this means that after a piece was placed, swapped piece corrdinates return to the top
+        if action == 5:
+            self.state.players[player_id].piece_current, self.state.players[player_id].piece_swap = \
+                self.state.players[player_id].piece_swap, self.state.players[player_id].piece_current
+        # Move piece left
+        if action == 6:
+            success = self._move(self.state.players[player_id].board,
+                                 self.state.players[player_id].piece_current,
+                                 -1, 0)
+        # Move piece right
+        elif action == 7:
+            success = self._move(self.state.players[player_id].board,
+                                 self.state.players[player_id].piece_current,
+                                 1, 0)
+        # Move piece clockwise 90 degrees
+        elif action == 8:
+            self._rotate_piece(self.state.players[player_id].board,
+                               self.state.players[player_id].piece_current,
+                               clockwise=True)
+
+        # Move piece counter clockwise 90 degrees
+        elif action == 9:
+            self._rotate_piece(self.state.players[player_id].board,
+                               self.state.players[player_id].piece_current,
+                               clockwise=False)
+
     def _update_player(self, player_id):
         """
         function that waits drops player's piece by 1 if this drop is possible;
@@ -169,37 +198,55 @@ class T99(gym.Env):
         can be cleared and shifts all lines on the top to fill missing row; then the attack event is created depending
         on how the lines were cleared. After everything is up to date, we check if the player lost
         """
+        # calculate board's width
+        b_height, b_width = self.state.players[player_id].board.shape
         # try to move piece to the bottom
         success = self._move(self.state.players[player_id].board,
                              self.state.players[player_id].piece_current,
                              0, 1)
         # if drop is impossible, start update procedure;
         if not success:
-            # calculate board's width
-            b_width = self.state.players[player_id].board.shape[1]
             # add piece to the board
             self.state.players[player_id].board = self._apply_piece(self.state.players[player_id].board,
                                                                     self.state.players[player_id].piece_current)
             # check which lines are cleared
             cleared = np.prod(self.state.players[player_id].board.astype(bool), axis=1)
-            print(cleared)
             # save the number of lines cleared to calculate attack power
             attack = np.sum(cleared)
             # for each cleared line
-            i = len(cleared) - 3
+            i = len(cleared) - 4
             while i > 4:
                 # if the line needs to be cleared
                 if cleared[i] > 0:
                     # clear the line
-                    self.state.players[player_id].board[i, 2:b_width-2] = 0
-                    i -= 1
+                    self.state.players[player_id].board[i, 3:b_width-3] = 0
+                    cleared[i] = 0
+                    # shift all lines from the top by 1
+                    self.state.players[player_id].board[6:i+1, 3:b_width-3] = \
+                        self.state.players[player_id].board[5:i, 3:b_width-3]
+                    cleared[6:i+1] = cleared[5:i]
+                    # clear the top line, which does not have pieces after shift
+                    self.state.players[player_id].board[5, 3:b_width-3] = 0
+                    cleared[5] = 0
                 else:
                     i -= 1
-
+            # TODO: add attack event here
 
             # update piece at hand
             self._next_piece(self.state.players[player_id])
+            # reset coordinates of the swap piece
+            self.state.players[player_id].piece_swap.y = 3
+            self.state.players[player_id].piece_swap.x = np.random.randint(5, high=b_width-5)
 
+        # check if player lost
+        if np.sum(self.state.players[player_id].board.astype(bool)[0:5, 3:b_width-3]) > 0:
+            # assign the position in the leaderboard
+            position = len(self.active_players) - np.sum(np.where(self.active_players is True, 1, 0))
+            self.active_players[player_id].place = position
+            # if so, update the list of active players
+            self.active_players[player_id] = False
+
+    """         Helper functions here           """
 
     def _apply_piece(self, board, piece):
         # stick piece to the board, and return new board
@@ -229,11 +276,46 @@ class T99(gym.Env):
             # if successfull, exit
             return True
 
+    def _rotate_piece(self, board, piece, clockwise=True):
+        # rotates a piece clockwise if possible
+        if clockwise:
+            piece.matrix = np.rot90(piece.matrix, axes=(1, 0))
+        else:
+            piece.matrix = np.rot90(piece.matrix, axes=(0, 1))
+        # check if the elements collided
+        if self._collision(board, piece):
+            if clockwise:
+                piece.matrix = np.rot90(piece.matrix, axes=(0, 1))
+            else:
+                piece.matrix = np.rot90(piece.matrix, axes=(1, 0))
+            return False
+        else:
+            # if successfull, exit
+            return True
+
+
     def _next_piece(self, player):
         # change current piece
         player.piece_current = player.piece_queue.pop(0)
         # produce a new piece for the queue
         player.piece_queue.append(Piece())
+    
+    def _observed_state(self):
+        return_state = []
+        for i, player in enumerate(self.state.players):
+            # return everything related to the current player.
+            if i == 0:
+                return_state.append((self.state.players[i].board,
+                    self.state.players[i].piece_swap,
+                    self.state.players[i].KOs,
+                    self.state.players[i].incoming_garbage,
+                    self.state.players[i].place,
+                    self.state.players[i].attack_strategy))
+            # Otherwise return only the board and the number of badges (number of KOs in our case).
+            else:
+                return_state.append((self.state.players[i].board, self.state.players[i].KOs))
+
+        return return_state
 
 class Renderer():
     '''
@@ -416,11 +498,11 @@ class Renderer():
 
 
     
-    def save_screen_as_image(self):
+    def save_screen_as_image(self,path : str):
         '''
         Saves the screen as an image, will update this in the future to meet needs of learning
         '''
-        pygame.image.save(self.window, "screenshot.png")
+        pygame.image.save(self.window, path)
 
     def quit(self):
         '''
@@ -506,9 +588,9 @@ class BoardRenderer():
         
         def draw_outline(self):
             top_left = (self.ORIGIN_X_PX - 1, self.ORIGIN_Y_PX - 1)
-            top_right = (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX + 2, self.ORIGIN_Y_PX-1)
-            bottom_left = (self.ORIGIN_X_PX - 1, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX + 2)
-            bottom_right = (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX+2, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX + 2)
+            top_right = (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX + 1, self.ORIGIN_Y_PX-1)
+            bottom_left = (self.ORIGIN_X_PX - 1, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX + 1)
+            bottom_right = (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX+1, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX + 1)
             pygame.draw.line(self.window, self.OUTLINE_CLR, top_left, bottom_left, self.LINE_WIDTH)
             pygame.draw.line(self.window, self.OUTLINE_CLR, top_left, top_right, self.LINE_WIDTH)
             pygame.draw.line(self.window, self.OUTLINE_CLR, top_right, bottom_right, self.LINE_WIDTH)
@@ -542,11 +624,19 @@ class BoardRenderer():
             x_px = grid_x * self.GRIDSIZE + self.ORIGIN_X_PX
             y_px = grid_y * self.GRIDSIZE + self.ORIGIN_Y_PX
             clr = Renderer.piece_colors[piece_int]
-            #pygame.draw.rect(self.window, clr, (x_px, y_px, self.GRIDSIZE-(2*self.SHADOW_SIZE_PX), self.GRIDSIZE-(2*self.SHADOW_SIZE_PX)), 0)
-            pygame.draw.rect(self.window, clr, (x_px+1, y_px+1, self.GRIDSIZE+1, self.GRIDSIZE+1), 0)
+            pygame.draw.rect(self.window, clr, (x_px+1, y_px+1, self.GRIDSIZE, self.GRIDSIZE), 0)
             
-            #if piece_int != 10: #Add highlight around all non-grey pieces
-            #    pygame.draw.rect(self.window, Renderer.WHITE, (x_px, y_px, self.GRIDSIZE, self.GRIDSIZE), self.SHADOW_SIZE_PX) #Outline
+           
+            # if piece_int == 0: #Skip empty squares
+            #     return 
+            # x_px = grid_x * self.GRIDSIZE + self.ORIGIN_X_PX
+            # y_px = grid_y * self.GRIDSIZE + self.ORIGIN_Y_PX
+            # clr = Renderer.piece_colors[piece_int]
+            # #pygame.draw.rect(self.window, clr, (x_px, y_px, self.GRIDSIZE-(2*self.SHADOW_SIZE_PX), self.GRIDSIZE-(2*self.SHADOW_SIZE_PX)), 0)
+            # pygame.draw.rect(self.window, clr, (x_px+1, y_px+1, self.GRIDSIZE+1, self.GRIDSIZE+1), 0)
+            
+            # #if piece_int != 10: #Add highlight around all non-grey pieces
+            # #    pygame.draw.rect(self.window, Renderer.WHITE, (x_px, y_px, self.GRIDSIZE, self.GRIDSIZE), self.SHADOW_SIZE_PX) #Outline
 
 class PlayerRenderer(BoardRenderer):
 
@@ -648,9 +738,9 @@ class PlayerRenderer(BoardRenderer):
     
     def draw_outline(self):
             top_left = (self.ORIGIN_X_PX - 1, self.ORIGIN_Y_PX - 1)
-            top_right = (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX + 1, self.ORIGIN_Y_PX-1)
-            bottom_left = (self.ORIGIN_X_PX - 1, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX  +1)
-            bottom_right = (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX+1, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX + 1)
+            top_right = (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX, self.ORIGIN_Y_PX-1)
+            bottom_left = (self.ORIGIN_X_PX - 1, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX)
+            bottom_right = (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX)
             pygame.draw.line(self.window, self.OUTLINE_CLR, top_left, bottom_left, self.LINE_WIDTH)
             pygame.draw.line(self.window, self.OUTLINE_CLR, top_left, top_right, self.LINE_WIDTH)
             pygame.draw.line(self.window, self.OUTLINE_CLR, top_right, bottom_right, self.LINE_WIDTH)
@@ -905,3 +995,5 @@ def fill_gradient(surface, color, gradient, rect=None, vertical=True, forward=Tr
                 min(max(a[2]+(rate[2]*(col-x1)),0),255)
             )
             fn_line(surface, color, (col,y1), (col,y2))
+
+    
