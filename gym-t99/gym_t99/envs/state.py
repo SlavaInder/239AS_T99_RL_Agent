@@ -155,7 +155,7 @@ class Player99:
         self.incoming_garbage = []
         # init attack strategy
         # out of 0, 1, 2, 3
-        self.attack_srategy = 1
+        self.attack_strategy = 1
 
 
 class State99:

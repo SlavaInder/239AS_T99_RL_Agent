@@ -2,6 +2,7 @@ import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
 from numpy.lib.function_base import _parse_gufunc_signature
+from numpy.random import poisson
 from .state import *
 
 from os import environ
@@ -249,6 +250,7 @@ class Renderer():
     YELLOW = (255, 255, 0)
     WHITE = (255, 255, 255)
     GREY = (90, 90, 90)
+    PINK = (231,7, 247)
     TRANS_WHITE = (255, 255, 255, 50)
 
     #Piece to Colors Map, from : https://tetris.fandom.com/wiki/Tetromino
@@ -287,15 +289,16 @@ class Renderer():
         #Set pixel constants of board
         self.MAIN_BOARD_GRIDSIZE = gridsize #The only constant here, the pixel size of the main board
         self.SECONDARY_BOARD_GRIDSIZE = max(1,int(self.MAIN_BOARD_GRIDSIZE // 7)) #Gridsize of smaller boards
-        self.SMALL_PADDING_PX, self.MEDIUM_PADDING_PX, self.LARGE_PADDING_PX = 2 * self.SECONDARY_BOARD_GRIDSIZE, 4 * self.SECONDARY_BOARD_GRIDSIZE, self.MAIN_BOARD_GRIDSIZE
+        self.SMALL_PADDING_PX, self.MEDIUM_PADDING_PX, self.LARGE_PADDING_PX = 2 * self.SECONDARY_BOARD_GRIDSIZE, 6 * self.SECONDARY_BOARD_GRIDSIZE, self.MAIN_BOARD_GRIDSIZE
         self.VERT_PADDING_PX, self.SIDE_PADDING_PX = self.LARGE_PADDING_PX, self.SMALL_PADDING_PX
 
         #Set widths of important areas
         self.NPC_WIDTH_PX = 7 * self.SECONDARY_BOARD_GRIDSIZE * self.BOARD_WIDTH + 6 * self.SMALL_PADDING_PX #Width of single side of NPCS
         self.NPC_HEIGHT_PX = 7 * self.SECONDARY_BOARD_GRIDSIZE * self.BOARD_HEIGHT + 6 * self.MEDIUM_PADDING_PX #Width of single side of NPCS
         
-        swap_width = int(self.MAIN_BOARD_GRIDSIZE // 2) * 6 
-        self.PLAYER_WIDTH_PX = swap_width + self.MAIN_BOARD_GRIDSIZE * self.BOARD_WIDTH #Left swap area + board size + right next pieces
+        swap_width = int(self.MAIN_BOARD_GRIDSIZE // 2) * 5 
+        queue_width = int(self.MAIN_BOARD_GRIDSIZE // 2) * 5 
+        self.PLAYER_WIDTH_PX = swap_width + self.MAIN_BOARD_GRIDSIZE * self.BOARD_WIDTH + queue_width #Left swap area + board size + right next pieces + right queue piece area
         
         #Set full dimensions of the board
         self.FULL_WIDTH_PX = 2 * self.SIDE_PADDING_PX + 2 * self.MEDIUM_PADDING_PX + 2 * self.NPC_WIDTH_PX + self.PLAYER_WIDTH_PX
@@ -348,8 +351,33 @@ class Renderer():
         #Create the Players Board
         #-----------------------
         x_orig = self.SIDE_PADDING_PX + self.NPC_WIDTH_PX + self.MEDIUM_PADDING_PX + swap_width
-        y_orig = self.VERT_PADDING_PX
+        y_orig = self.VERT_PADDING_PX + int(self.MAIN_BOARD_GRIDSIZE * 1.5)
         self.player_board = PlayerRenderer(self.player,x_orig,y_orig,self.MAIN_BOARD_GRIDSIZE,self.window, self.top_rows_ignore, self.num_walls_side, self.num_walls_bottom)
+
+    def set_player_position(self):
+        '''
+        Sets the players board to the lowest of the NPC's - 1. Or 100 if no NPC's have positions
+        '''
+        # Iterate through all boards
+        # If no integer found, then set position equal to None
+        # If there is a minimum integer found, then set self.player_board to 1 minus that
+        
+        self.player_board.num_total_players = len(self.npc_board_renderers) + 1
+
+        if self.player.place != None:
+            self.player_board.position = self.player.place
+            return
+
+        min_position = len(self.npc_board_renderers) + 2
+        for board in self.npc_board_renderers:
+            npc = board.player
+            position = npc.place
+            if position == None:
+                continue
+            if position < min_position:
+                min_position = position
+        
+        self.player_board.position = min_position - 1
 
 
     @staticmethod
@@ -369,12 +397,14 @@ class Renderer():
             bot_num += 1
             i -= 1
         return side_num, bot_num 
-            
+    
     def draw_screen(self):
         '''
         Draws the screen
         '''
-        self.window.fill(Renderer.BLACK)
+        self.set_player_position() #Do a custom calculation of our player's position 
+        #self.window.fill(Renderer.YELLOW)
+        fill_gradient(self.window, Renderer.CYAN, Renderer.MAGENTA, rect=None, vertical=True, forward=True)
         
         #Draw NPC boards
         for board_renderer in self.npc_board_renderers:
@@ -383,6 +413,7 @@ class Renderer():
         #Draw user's board
         self.player_board.draw_board()
         pygame.display.update()
+
 
     
     def save_screen_as_image(self):
@@ -402,7 +433,6 @@ class Renderer():
 class BoardRenderer():
         '''
         Handles the rendering of each individual board
-        TODO : Handle if boards player is even alive!!
         '''
         def __init__(self, player, origin_x_px, origin_y_px, gridsize, window, top_rows_ignore, num_walls_side, num_walls_bottom):
             '''
@@ -433,9 +463,9 @@ class BoardRenderer():
             self.ORIGIN_X_PX = origin_x_px
             self.ORIGIN_Y_PX = origin_y_px
             
-            self.OUTLINE_CLR = Renderer.GREY
+            self.OUTLINE_CLR = Renderer.WHITE
             self.GRID_CLR = Renderer.GREY
-            self.fontsize_ko = int(self.GRIDSIZE * 3.5)
+            self.fontsize_ko = int(self.GRIDSIZE * 3.9)
             self.arial_ko = pygame.font.SysFont('Arial Black', self.fontsize_ko)
 
 
@@ -443,33 +473,42 @@ class BoardRenderer():
             '''
             Draws a board
             '''
-        
+            self.draw_background()
             self.draw_outline()
             if self.player.place != None:
                 self.draw_elimination()
             else:
                 self.draw_all_blocks()
         
+        def draw_background(self):
+            '''
+            Draws black background for board
+            '''
+            pygame.draw.rect(self.window, Renderer.BLACK, (self.ORIGIN_X_PX+1, self.ORIGIN_Y_PX+1, self.BOARD_WIDTH_PX+1, self.BOARD_HEIGHT_PX+1), 0)
+        
         def draw_elimination(self):
-            string1 = "K.O."
+            string1 = "KO"
             if len(str(self.player.place)) == 1:
-                string2 = "  " + str(self.player.place)
+                string2 = str(self.player.place)
             else:
-                string2 = " " + str(self.player.place)
+                string2 = str(self.player.place)
             place_text = self.arial_ko.render(string1, True, Renderer.WHITE)
             place_text2 = self.arial_ko.render(string2, True, Renderer.WHITE)
-            x1 = int(self.BOARD_WIDTH_PX/8) + self.ORIGIN_X_PX
-            y1 = int(self.BOARD_HEIGHT_PX/5) + self.ORIGIN_Y_PX
-            x2 = x1
-            y2 = y1 + self.fontsize_ko
-            self.window.blit(place_text,(x1,y1))
-            self.window.blit(place_text2,(x2,y2))
+            
+
+            center_x = int(self.ORIGIN_X_PX + self.GRIDSIZE * self.BOARD_WIDTH * 0.5)
+            center_y = int(self.ORIGIN_Y_PX + self.GRIDSIZE * self.BOARD_HEIGHT * 0.35)
+            center_y_2 = int(self.ORIGIN_Y_PX + self.GRIDSIZE * self.BOARD_HEIGHT * 0.35 + self.fontsize_ko*1.2)
+            text_rect_1 = place_text.get_rect(center=(center_x, center_y))
+            text_rect_2 = place_text2.get_rect(center=(center_x, center_y_2))
+            self.window.blit(place_text,text_rect_1)
+            self.window.blit(place_text2,text_rect_2)
         
         def draw_outline(self):
             top_left = (self.ORIGIN_X_PX - 1, self.ORIGIN_Y_PX - 1)
-            top_right = (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX + 1, self.ORIGIN_Y_PX-1)
-            bottom_left = (self.ORIGIN_X_PX - 1, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX  +1)
-            bottom_right = (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX+1, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX + 1)
+            top_right = (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX + 2, self.ORIGIN_Y_PX-1)
+            bottom_left = (self.ORIGIN_X_PX - 1, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX + 2)
+            bottom_right = (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX+2, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX + 2)
             pygame.draw.line(self.window, self.OUTLINE_CLR, top_left, bottom_left, self.LINE_WIDTH)
             pygame.draw.line(self.window, self.OUTLINE_CLR, top_left, top_right, self.LINE_WIDTH)
             pygame.draw.line(self.window, self.OUTLINE_CLR, top_right, bottom_right, self.LINE_WIDTH)
@@ -504,7 +543,7 @@ class BoardRenderer():
             y_px = grid_y * self.GRIDSIZE + self.ORIGIN_Y_PX
             clr = Renderer.piece_colors[piece_int]
             #pygame.draw.rect(self.window, clr, (x_px, y_px, self.GRIDSIZE-(2*self.SHADOW_SIZE_PX), self.GRIDSIZE-(2*self.SHADOW_SIZE_PX)), 0)
-            pygame.draw.rect(self.window, clr, (x_px, y_px, self.GRIDSIZE, self.GRIDSIZE), 0)
+            pygame.draw.rect(self.window, clr, (x_px+1, y_px+1, self.GRIDSIZE+1, self.GRIDSIZE+1), 0)
             
             #if piece_int != 10: #Add highlight around all non-grey pieces
             #    pygame.draw.rect(self.window, Renderer.WHITE, (x_px, y_px, self.GRIDSIZE, self.GRIDSIZE), self.SHADOW_SIZE_PX) #Outline
@@ -525,6 +564,28 @@ class PlayerRenderer(BoardRenderer):
             '''
             super().__init__(player, origin_x_px, origin_y_px, gridsize, window, top_rows_ignore, num_walls_side, num_walls_bottom)
             self.HALF_GRIDSIZE = int(self.GRIDSIZE // 2)
+
+            self.position = None
+            self.num_total_players = None
+
+            #QUEUE PIECE
+            #----------
+            #Dims: 33 x 5 of half gridsize
+            self.GRIDS_PER_PIECE_VERT = 5
+            self.QUEUE_WIDTH_PX = self.HALF_GRIDSIZE * 5
+            self.QUEUE_HEIGHT_PX = 3 * self.HALF_GRIDSIZE + self.GRIDS_PER_PIECE_VERT * 5 * self.HALF_GRIDSIZE
+            self.QUEUE_X_PX = self.ORIGIN_X_PX + self.BOARD_WIDTH * self.GRIDSIZE
+            self.QUEUE_Y_PX = self.ORIGIN_Y_PX
+
+            #PLACE AREA
+            #---------
+            #Dims: 5 x (self.BOARD_HEIGHT - self.QUEUE_HEIGHT)
+            self.PLACE_WIDTH_PX = self.QUEUE_WIDTH_PX
+            self.PLACE_HEIGHT_PX = self.BOARD_HEIGHT_PX - self.QUEUE_HEIGHT_PX
+            self.PLACE_X_PX = self.QUEUE_X_PX
+            self.PLACE_Y_PX = self.ORIGIN_Y_PX + self.QUEUE_HEIGHT_PX + 1
+
+
             #SWAP PIECE
             #---------
             #Dims: 8 x 5 of half gridsize
@@ -538,7 +599,7 @@ class PlayerRenderer(BoardRenderer):
 
             #GARBAGE PIECE AREA
             #---------
-            #Dims: 2 x (self.BOARD_HEIGHT - 4) of normal gridsize
+            #Dims: (self.BOARD_HEIGHT - 4) x 2 of normal gridsize
             self.GARBAGE_HEIGHT = self.BOARD_HEIGHT - 4 #Useful to see if we can fit pieces
             self.GARBAGE_WIDTH_PX = int(self.GRIDSIZE * 1.5)
             self.GARBAGE_OFFSET_X = int(self.GRIDSIZE * 0.25)
@@ -546,17 +607,35 @@ class PlayerRenderer(BoardRenderer):
             self.GARBAGE_X_PX = self.ORIGIN_X_PX - self.GARBAGE_WIDTH_PX
             self.GARBAGE_Y_PX = self.ORIGIN_Y_PX + self.SWAP_HEIGHT_PX
 
-            self.OUTLINE_CLR = Renderer.CYAN
+            self.OUTLINE_CLR = Renderer.WHITE
 
+            #Fontsizes
             self.fontsize_swap = int(self.GRIDSIZE / 2)
-            self.arial_swap = pygame.font.SysFont('Arial Black', self.fontsize_swap)
+            self.fontsize_place = int(self.GRIDSIZE / 1.4)
+            self.fontsize_place_small = int(self.GRIDSIZE / 1.7)
+            self.fontsize_target = int(self.GRIDSIZE)
 
+            #Fonts
+            self.arial_target = pygame.font.SysFont('Arial Black', self.fontsize_target)
+            
+            self.arial_headers = pygame.font.SysFont('Arial Black', self.fontsize_swap)
+            self.arial_place_small = pygame.font.SysFont('Arial Black', self.fontsize_place_small)
+            self.arial_place = pygame.font.SysFont('Arial Black', self.fontsize_place)
+            
+
+            #TODO: 
+            # - Different sick looking background color, maybe a gradient??
+            # - Figure out screenshot system
             
     def draw_board(self):
             '''
             Draws a board
             '''
-            self.draw_swap()   
+            self.draw_background()
+            self.draw_target()
+            self.draw_swap() 
+            self.draw_place() 
+            self.draw_queue()
             self.draw_garbage()
             
             if self.player.place != None:
@@ -564,8 +643,18 @@ class PlayerRenderer(BoardRenderer):
                 self.draw_outline()
             else:
                 self.draw_grid()
-                self.draw_outline()
                 self.draw_all_blocks()
+                self.draw_outline()
+    
+    def draw_outline(self):
+            top_left = (self.ORIGIN_X_PX - 1, self.ORIGIN_Y_PX - 1)
+            top_right = (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX + 1, self.ORIGIN_Y_PX-1)
+            bottom_left = (self.ORIGIN_X_PX - 1, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX  +1)
+            bottom_right = (self.ORIGIN_X_PX + self.BOARD_WIDTH_PX+1, self.ORIGIN_Y_PX + self.BOARD_HEIGHT_PX + 1)
+            pygame.draw.line(self.window, self.OUTLINE_CLR, top_left, bottom_left, self.LINE_WIDTH)
+            pygame.draw.line(self.window, self.OUTLINE_CLR, top_left, top_right, self.LINE_WIDTH)
+            pygame.draw.line(self.window, self.OUTLINE_CLR, top_right, bottom_right, self.LINE_WIDTH)
+            pygame.draw.line(self.window, self.OUTLINE_CLR, bottom_left, bottom_right, self.LINE_WIDTH)
             
     def draw_block(self,grid_x,grid_y,piece_int):
             '''
@@ -594,6 +683,14 @@ class PlayerRenderer(BoardRenderer):
         if piece_int != 10: #Add highlight around all non-grey pieces
             pygame.draw.rect(self.window, Renderer.WHITE, (x_px, y_px, gridsize, gridsize), self.SHADOW_SIZE_PX) #Outline 
     
+    def draw_target(self):
+        mode = [None,"RANDOM","K.O.","LEADER","ATTACKER"]
+        text = self.arial_target.render(mode[self.player.attack_strategy], True, Renderer.WHITE)
+        center_x = int(self.ORIGIN_X_PX + self.GRIDSIZE * self.BOARD_WIDTH * 0.5)
+        center_y = int(self.ORIGIN_Y_PX - self.GRIDSIZE * 0.75)
+        text_rect = text.get_rect(center=(center_x, center_y))
+        self.window.blit(text,text_rect)
+
     
     def draw_garbage_piece(self,grid_x, grid_y, grid_orig_x, grid_orig_y, gridsize,clr):
         
@@ -602,6 +699,98 @@ class PlayerRenderer(BoardRenderer):
         
         pygame.draw.rect(self.window, clr, (x_px, y_px, gridsize-(2*self.SHADOW_SIZE_PX), gridsize-(2*self.SHADOW_SIZE_PX)), 0)
         pygame.draw.rect(self.window, Renderer.WHITE, (x_px, y_px, gridsize, gridsize), self.SHADOW_SIZE_PX) #Outline 
+    
+    def draw_place(self):
+        #Draw Background rect
+        pygame.draw.rect(self.window, Renderer.BLACK, (self.PLACE_X_PX, self.PLACE_Y_PX, self.PLACE_WIDTH_PX, self.PLACE_HEIGHT_PX), 0)
+        #Draw outline on top,and bottom
+        top_right = (self.PLACE_X_PX + self.PLACE_WIDTH_PX,self.PLACE_Y_PX - 1)
+        bottom_left = (self.PLACE_X_PX - 1,self.PLACE_Y_PX + self.PLACE_HEIGHT_PX )
+        bottom_right = (self.PLACE_X_PX + self.PLACE_WIDTH_PX ,self.PLACE_Y_PX + self.PLACE_HEIGHT_PX )
+        pygame.draw.line(self.window, self.OUTLINE_CLR, top_right, bottom_right, self.LINE_WIDTH) #right
+        pygame.draw.line(self.window, self.OUTLINE_CLR, bottom_left, bottom_right, self.LINE_WIDTH) #bottom
+
+        #Draw the place 
+        place_str = "{}/{}".format(self.position,self.num_total_players)
+        place_text = self.arial_place.render(place_str, True, Renderer.WHITE)
+
+        center_x = int(self.PLACE_X_PX + self.PLACE_WIDTH_PX * 0.5)
+        center_y = int(2.3 * self.GRIDSIZE + self.PLACE_Y_PX)
+        text_rect = place_text.get_rect(center=(center_x, center_y))
+
+        self.window.blit(place_text,text_rect)
+
+        #Draw the K.O's
+        KO_str_1 = "KO's:"
+        place_text = self.arial_place_small.render(KO_str_1, True, Renderer.WHITE)
+
+        center_x = int(self.PLACE_X_PX + self.PLACE_WIDTH_PX * 0.5)
+        center_y = int(3.7 * self.GRIDSIZE + self.PLACE_Y_PX)
+        text_rect = place_text.get_rect(center=(center_x, center_y))
+
+        self.window.blit(place_text,text_rect)
+
+
+        KO_str_2 = str(self.player.KOs)
+        place_text = self.arial_place.render(KO_str_2, True, Renderer.WHITE)
+
+        center_x = int(self.PLACE_X_PX + self.PLACE_WIDTH_PX * 0.5)
+        center_y = int(4.5 * self.GRIDSIZE + self.PLACE_Y_PX)
+        text_rect = place_text.get_rect(center=(center_x, center_y))
+
+        self.window.blit(place_text,text_rect)
+
+
+
+        #Draw the caption
+        pygame.draw.line(self.window, self.OUTLINE_CLR, (self.PLACE_X_PX, self.PLACE_Y_PX + 2 * self.HALF_GRIDSIZE), (self.PLACE_X_PX + self.PLACE_WIDTH_PX + 1, self.PLACE_Y_PX + 2 * self.HALF_GRIDSIZE), self.LINE_WIDTH)
+
+        place_text = self.arial_headers.render("PLACE", True, Renderer.WHITE)
+        center_x = int(self.PLACE_X_PX + self.PLACE_WIDTH_PX * 0.5)
+        center_y = self.HALF_GRIDSIZE + self.PLACE_Y_PX
+        text_rect = place_text.get_rect(center=(center_x, center_y))
+
+        self.window.blit(place_text,text_rect)
+        
+
+
+    def draw_queue(self):
+        #Draw Background rect
+        pygame.draw.rect(self.window, Renderer.BLACK, (self.QUEUE_X_PX, self.QUEUE_Y_PX, self.QUEUE_WIDTH_PX, self.QUEUE_HEIGHT_PX), 0)
+        #Draw outline on top,and bottom
+        top_left = (self.QUEUE_X_PX - 1,self.QUEUE_Y_PX-1)
+        top_right = (self.QUEUE_X_PX + self.QUEUE_WIDTH_PX,self.QUEUE_Y_PX - 1)
+        bottom_left = (self.QUEUE_X_PX - 1,self.QUEUE_Y_PX + self.QUEUE_HEIGHT_PX )
+        bottom_right = (self.QUEUE_X_PX + self.QUEUE_WIDTH_PX ,self.QUEUE_Y_PX + self.QUEUE_HEIGHT_PX )
+        pygame.draw.line(self.window, self.OUTLINE_CLR, top_left, top_right, self.LINE_WIDTH) #top
+        pygame.draw.line(self.window, self.OUTLINE_CLR, top_right, bottom_right, self.LINE_WIDTH) #right
+        pygame.draw.line(self.window, self.OUTLINE_CLR, (self.QUEUE_X_PX,self.QUEUE_Y_PX + self.QUEUE_HEIGHT_PX ), bottom_right, self.LINE_WIDTH) #bottom
+
+        #Draw the pieces
+        offset_y  = 2 * self.HALF_GRIDSIZE
+        for i in range(5):
+            if i >= len(self.player.piece_queue):
+                break
+            piece_next = self.player.piece_queue[i].matrix
+            
+            for i in range(piece_next.shape[0]):
+                for j in range(piece_next.shape[1]):
+                    self.draw_block_custom(j, i, self.QUEUE_X_PX, self.QUEUE_Y_PX + offset_y, piece_next[i,j],self.HALF_GRIDSIZE)
+
+            offset_y += 5 * self.HALF_GRIDSIZE
+
+        #Draw the caption
+        pygame.draw.line(self.window, self.OUTLINE_CLR, (self.QUEUE_X_PX , self.QUEUE_Y_PX + 2 * self.HALF_GRIDSIZE), (self.QUEUE_X_PX + self.QUEUE_WIDTH_PX + 1, self.QUEUE_Y_PX + 2 * self.HALF_GRIDSIZE), self.LINE_WIDTH)
+
+        place_text = self.arial_headers.render("QUEUE", True, Renderer.WHITE)
+
+        center_x = int(self.QUEUE_X_PX + self.QUEUE_WIDTH_PX * 0.5)
+        center_y = self.HALF_GRIDSIZE + self.QUEUE_Y_PX
+        text_rect = place_text.get_rect(center=(center_x, center_y))
+
+        self.window.blit(place_text,text_rect)
+
+
 
     def draw_swap(self):
         #Draw Background rect
@@ -616,19 +805,22 @@ class PlayerRenderer(BoardRenderer):
         pygame.draw.line(self.window, self.OUTLINE_CLR, bottom_left, bottom_right, self.LINE_WIDTH) #bottom
 
         #Draw the shape
-        piece_swap = self.player.piece_swap #shape : 5x5
+        piece_swap = self.player.piece_swap.matrix #shape : 5x5
         
         for i in range(piece_swap.shape[0]):
             for j in range(piece_swap.shape[1]):
                 self.draw_block_custom(j, i, self.SWAP_X_PX, self.SWAP_Y_PX + 2 * self.HALF_GRIDSIZE,piece_swap[i,j],self.HALF_GRIDSIZE)
         
         #Draw the caption
-        pygame.draw.line(self.window, self.OUTLINE_CLR, (self.SWAP_X_PX - 1, self.SWAP_Y_PX + 2 * self.HALF_GRIDSIZE), (self.SWAP_X_PX + self.SWAP_WIDTH_PX + 1, self.SWAP_Y_PX + 2 * self.HALF_GRIDSIZE), self.LINE_WIDTH)
+        pygame.draw.line(self.window, self.OUTLINE_CLR, (self.SWAP_X_PX - 1, self.SWAP_Y_PX + 2 * self.HALF_GRIDSIZE), (self.SWAP_X_PX + self.SWAP_WIDTH_PX , self.SWAP_Y_PX + 2 * self.HALF_GRIDSIZE), self.LINE_WIDTH)
 
-        place_text = self.arial_swap.render("SWAP", True, Renderer.WHITE)
-        x1 = self.HALF_GRIDSIZE + self.SWAP_X_PX
-        y1 = int(self.HALF_GRIDSIZE/4) + self.SWAP_Y_PX
-        self.window.blit(place_text,(x1,y1))
+        place_text = self.arial_headers.render("SWAP", True, Renderer.WHITE)
+
+        center_x = int(self.SWAP_X_PX + self.SWAP_WIDTH_PX * 0.5)
+        center_y = self.HALF_GRIDSIZE + self.SWAP_Y_PX
+        text_rect = place_text.get_rect(center=(center_x, center_y))
+
+        self.window.blit(place_text,text_rect)
 
     def draw_garbage(self):
         #Draw Background rect
@@ -645,6 +837,7 @@ class PlayerRenderer(BoardRenderer):
         next_x = self.GARBAGE_X_PX + self.GARBAGE_OFFSET_X
         next_y = self.GARBAGE_Y_PX + self.GARBAGE_HEIGHT_PX - self.GRIDSIZE
         
+        next_y -= int(self.GRIDSIZE/5) #Give an extra boost
         for i in range(len(pieces_to_draw)):
             if next_y < self.GARBAGE_Y_PX:
                 return
@@ -670,3 +863,45 @@ class PlayerRenderer(BoardRenderer):
             return Renderer.YELLOW
         else:
             return Renderer.GREY
+
+#Didn't write this function it is from: https://www.pygame.org/wiki/GradientCode
+def fill_gradient(surface, color, gradient, rect=None, vertical=True, forward=True):
+    """fill a surface with a gradient pattern
+    Parameters:
+    color -> starting color
+    gradient -> final color
+    rect -> area to fill; default is surface's rect
+    vertical -> True=vertical; False=horizontal
+    forward -> True=forward; False=reverse
+    
+    Pygame recipe: http://www.pygame.org/wiki/GradientCode
+    """
+    if rect is None: rect = surface.get_rect()
+    x1,x2 = rect.left, rect.right
+    y1,y2 = rect.top, rect.bottom
+    if vertical: h = y2-y1
+    else:        h = x2-x1
+    if forward: a, b = color, gradient
+    else:       b, a = color, gradient
+    rate = (
+        float(b[0]-a[0])/h,
+        float(b[1]-a[1])/h,
+        float(b[2]-a[2])/h
+    )
+    fn_line = pygame.draw.line
+    if vertical:
+        for line in range(y1,y2):
+            color = (
+                min(max(a[0]+(rate[0]*(line-y1)),0),255),
+                min(max(a[1]+(rate[1]*(line-y1)),0),255),
+                min(max(a[2]+(rate[2]*(line-y1)),0),255)
+            )
+            fn_line(surface, color, (x1,line), (x2,line))
+    else:
+        for col in range(x1,x2):
+            color = (
+                min(max(a[0]+(rate[0]*(col-x1)),0),255),
+                min(max(a[1]+(rate[1]*(col-x1)),0),255),
+                min(max(a[2]+(rate[2]*(col-x1)),0),255)
+            )
+            fn_line(surface, color, (col,y1), (col,y2))
