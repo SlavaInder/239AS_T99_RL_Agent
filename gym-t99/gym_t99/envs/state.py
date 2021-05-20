@@ -80,12 +80,12 @@ class Piece:
     # this function spawns a random piece
     def __init__(self):
         # roll a random number
-        roll = np.random.choice(list(Piece.shapes.keys()))
+        self.roll = np.random.choice(list(Piece.shapes.keys()))
         # copy a piece from template
-        self.matrix = Piece.shapes[roll].copy()
+        self.matrix = Piece.shapes[self.roll].copy()
         # sample a random x coordinate for a piece
         # make sure that it does not collide with the borders
-        self.x = np.random.randint(3, high=BOARD_WIDTH-1)
+        self.x = np.random.randint(4, high=BOARD_WIDTH-2)
         # set coordinate. It is constant for all new pieces
         self.y = 2
 
@@ -156,6 +156,7 @@ class Player99:
         # init attack strategy
         # out of 1, 2, 3, 4
         self.attack_strategy = 1
+        self.num_lines_recently_cleared = 0
 
 
 class State99:

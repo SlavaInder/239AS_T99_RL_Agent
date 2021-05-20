@@ -34,6 +34,7 @@ class T99(gym.Env):
                                     this is the previous iteration of AI
         :param num_players: number of competing agents (ideally, 99) in the game
         """
+        self.num_players = num_players
         self.action_space = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         self.enemy = enemy
         self.state = State99(num_players)
@@ -89,11 +90,15 @@ class T99(gym.Env):
             done = True
 
         next_state = self._observed_state()
+        reward = self.vanilla_tetris_reward()
 
         return next_state, reward, done, info
 
     def reset(self):
-        self.state = State99()
+        self.current_step = 0
+        self.state = State99(self.num_players)
+        self.active_players = np.ones(self.num_players).astype(bool)
+        return (self._observed_state(), 0, False, None)
 
     def render(self, mode='human'):
         """
@@ -132,7 +137,7 @@ class T99(gym.Env):
         """
         # go through all options of action id-s and perform them
         # choose attack strategy
-        if action in [1, 2, 3, 4]:
+        if action in [6, 7, 8, 9]:
             self.state.players[player_id].attack_strategy = action
         # swap a piece
         # note that after a piece was swapped, new piece starts at the top to avoid conflicts at collisions
@@ -141,23 +146,23 @@ class T99(gym.Env):
             self.state.players[player_id].piece_current, self.state.players[player_id].piece_swap = \
                 self.state.players[player_id].piece_swap, self.state.players[player_id].piece_current
         # Move piece left
-        if action == 6:
+        if action == 0:
             success = self._move(self.state.players[player_id].board,
                                  self.state.players[player_id].piece_current,
                                  -1, 0)
         # Move piece right
-        elif action == 7:
+        elif action == 1:
             success = self._move(self.state.players[player_id].board,
                                  self.state.players[player_id].piece_current,
                                  1, 0)
         # Move piece clockwise 90 degrees
-        elif action == 8:
+        elif action == 2:
             self._rotate_piece(self.state.players[player_id].board,
                                self.state.players[player_id].piece_current,
                                clockwise=True)
 
         # Move piece counter clockwise 90 degrees
-        elif action == 9:
+        elif action == 3:
             self._rotate_piece(self.state.players[player_id].board,
                                self.state.players[player_id].piece_current,
                                clockwise=False)
@@ -184,6 +189,7 @@ class T99(gym.Env):
             cleared = np.prod(self.state.players[player_id].board.astype(bool), axis=1)
             # save the number of lines cleared to calculate attack power
             attack = np.sum(cleared)
+            self.state.players[player_id].num_lines_recently_cleared = attack
             # for each cleared line
             i = len(cleared) - 4
             while i > 4:
@@ -213,7 +219,7 @@ class T99(gym.Env):
         if np.sum(self.state.players[player_id].board.astype(bool)[0:5, 3:b_width-3]) > 0:
             # assign the position in the leaderboard
             position = len(self.active_players) - np.sum(np.where(self.active_players is True, 1, 0))
-            self.active_players[player_id].place = position
+            self.state.players[player_id].place = position
             # if so, update the list of active players
             self.active_players[player_id] = False
 
@@ -277,14 +283,20 @@ class T99(gym.Env):
         for i, player in enumerate(self.state.players):
             # return everything related to the current player.
             if i == 0:
-                return_state.append((self.state.players[i].board,
+                return_state.append((self._apply_piece(self.state.players[i].board.copy(), self.state.players[i].piece_current),
+                    self.state.players[i].board,
+                    self.state.players[i].piece_current.roll,
                     self.state.players[i].piece_swap,
                     self.state.players[i].KOs,
                     self.state.players[i].incoming_garbage,
                     self.state.players[i].place,
-                    self.state.players[i].attack_strategy))
+                    self.state.players[i].attack_strategy,
+                    self.state.players[i].num_lines_recently_cleared))
             # Otherwise return only the board and the number of badges (number of KOs in our case).
             else:
                 return_state.append((self.state.players[i].board, self.state.players[i].KOs))
 
         return return_state
+
+    def vanilla_tetris_reward(self):
+        return 1 + ((self.state.players[0].num_lines_recently_cleared ** 2) * self.state.players[0].board.shape[1])
