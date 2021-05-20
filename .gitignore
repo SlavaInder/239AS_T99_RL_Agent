@@ -37,3 +37,9 @@ name_of_environment/*
 *.exe
 *.out
 *.app
+
+#Mac
+*.DS_Store
+
+#Images
+*.png
