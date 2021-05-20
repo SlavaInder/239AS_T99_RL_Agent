@@ -130,11 +130,7 @@ class T99(gym.Env):
                 self.pygame_started = False
             
         elif mode == "human":
-            # TODO: we need to apply a piece to a board before rendering
-            # however, application can be done only to the copy of a player's state
-            # (because of other game logic, we can not change self.state)
-
-
+            
             # get a copy of the current state
             temp_state = deepcopy(self.state)
             # apply the piece to each board
@@ -145,7 +141,9 @@ class T99(gym.Env):
             if not self.pygame_started:
                 self.renderer = Renderer(temp_state.players, show_window=show_window)
                 self.pygame_started = True
-            
+            else:
+                self.renderer.update_state(temp_state.players)
+
             self.renderer.draw_screen()
             self.renderer.save_screen_as_image(image_path)
             
@@ -450,6 +448,29 @@ class Renderer():
         y_orig = self.VERT_PADDING_PX + int(self.MAIN_BOARD_GRIDSIZE * 1.5)
         self.player_board = PlayerRenderer(self.player,x_orig,y_orig,self.MAIN_BOARD_GRIDSIZE,self.window, self.top_rows_ignore, self.num_walls_side, self.num_walls_bottom)
 
+    def update_state(self,players):
+        '''
+        :param list of Player99 players: from a copy of state.players where piece is applied
+        Takes a State99, updates all of information with this new state
+        
+        Need to update:
+            self.player
+            self.npcs
+            update_state for each:
+                self.npc_board_renderers
+                self.player_board
+        '''
+        #Update our Pointers
+        self.player = players[0]
+        self.npcs = players[1:]
+
+        #Tell the boards to update
+        self.player_board.update_state(players[0])
+
+        for npc_index in range(len(self.npcs)):
+            self.npc_board_renderers[npc_index].update_state(self.npcs[npc_index])
+       
+
     def set_player_position(self):
         '''
         Sets the players board to the lowest of the NPC's - 1. Or 100 if no NPC's have positions
@@ -563,6 +584,13 @@ class BoardRenderer():
             self.GRID_CLR = Renderer.GREY
             self.fontsize_ko = int(self.GRIDSIZE * 3.9)
             self.arial_ko = pygame.font.SysFont('Arial Black', self.fontsize_ko)
+
+        def update_state(self,player):
+            '''
+            :param Player99 player: the player we will be updating to
+            '''
+            self.player = player
+            self.board = player.board
 
 
         def draw_board(self):
@@ -724,13 +752,9 @@ class PlayerRenderer(BoardRenderer):
             
             self.arial_headers = pygame.font.SysFont('Arial Black', self.fontsize_swap)
             self.arial_place_small = pygame.font.SysFont('Arial Black', self.fontsize_place_small)
-            self.arial_place = pygame.font.SysFont('Arial Black', self.fontsize_place)
-            
+            self.arial_place = pygame.font.SysFont('Arial Black', self.fontsize_place)   
 
-            #TODO: 
-            # - Different sick looking background color, maybe a gradient??
-            # - Figure out screenshot system
-            
+    
     def draw_board(self):
             '''
             Draws a board
@@ -809,8 +833,8 @@ class PlayerRenderer(BoardRenderer):
         pygame.draw.rect(self.window, Renderer.BLACK, (self.PLACE_X_PX, self.PLACE_Y_PX, self.PLACE_WIDTH_PX, self.PLACE_HEIGHT_PX), 0)
         #Draw outline on top,and bottom
         top_right = (self.PLACE_X_PX + self.PLACE_WIDTH_PX,self.PLACE_Y_PX - 1)
-        bottom_left = (self.PLACE_X_PX - 1,self.PLACE_Y_PX + self.PLACE_HEIGHT_PX )
-        bottom_right = (self.PLACE_X_PX + self.PLACE_WIDTH_PX ,self.PLACE_Y_PX + self.PLACE_HEIGHT_PX )
+        bottom_left = (self.PLACE_X_PX - 1,self.PLACE_Y_PX + self.PLACE_HEIGHT_PX -1 )
+        bottom_right = (self.PLACE_X_PX + self.PLACE_WIDTH_PX ,self.PLACE_Y_PX + self.PLACE_HEIGHT_PX -1 )
         pygame.draw.line(self.window, self.OUTLINE_CLR, top_right, bottom_right, self.LINE_WIDTH) #right
         pygame.draw.line(self.window, self.OUTLINE_CLR, bottom_left, bottom_right, self.LINE_WIDTH) #bottom
 
@@ -931,8 +955,8 @@ class PlayerRenderer(BoardRenderer):
         pygame.draw.rect(self.window, Renderer.BLACK, (self.GARBAGE_X_PX, self.GARBAGE_Y_PX + self.LINE_WIDTH, self.GARBAGE_WIDTH_PX, self.GARBAGE_HEIGHT_PX-self.LINE_WIDTH), 0)
         #Draw Outline on left and bottom
         top_left = (self.GARBAGE_X_PX - 1,self.GARBAGE_Y_PX)
-        bottom_left = (self.GARBAGE_X_PX - 1,self.GARBAGE_Y_PX + self.GARBAGE_HEIGHT_PX + 1)
-        bottom_right = (self.GARBAGE_X_PX + self.GARBAGE_WIDTH_PX + 1,self.GARBAGE_Y_PX + self.GARBAGE_HEIGHT_PX + 1)
+        bottom_left = (self.GARBAGE_X_PX - 1,self.GARBAGE_Y_PX + self.GARBAGE_HEIGHT_PX)
+        bottom_right = (self.GARBAGE_X_PX + self.GARBAGE_WIDTH_PX + 1,self.GARBAGE_Y_PX + self.GARBAGE_HEIGHT_PX)
         pygame.draw.line(self.window, self.OUTLINE_CLR, top_left, bottom_left, self.LINE_WIDTH) #left
         pygame.draw.line(self.window, self.OUTLINE_CLR, bottom_left, bottom_right, self.LINE_WIDTH) #bottom
 
