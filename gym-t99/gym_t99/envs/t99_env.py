@@ -5,6 +5,8 @@ from numpy.lib.function_base import _parse_gufunc_signature
 from numpy.random import poisson
 from .state import *
 
+from copy import copy, deepcopy
+
 from os import environ
 environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide" #Silence the pygame printing
 import pygame
@@ -128,8 +130,20 @@ class T99(gym.Env):
                 self.pygame_started = False
             
         elif mode == "human":
+            # TODO: we need to apply a piece to a board before rendering
+            # however, application can be done only to the copy of a player's state
+            # (because of other game logic, we can not change self.state)
+
+
+            # get a copy of the current state
+            temp_state = deepcopy(self.state)
+            # apply the piece to each board
+            for i in range(len(temp_state.players)):
+                # copy the board together with piece
+                temp_state.players[i].board = self._apply_piece(temp_state.players[i].board.copy(), temp_state.players[i].piece_current)
+
             if not self.pygame_started:
-                self.renderer = Renderer(self.state.players,show_window=show_window)
+                self.renderer = Renderer(temp_state.players, show_window=show_window)
                 self.pygame_started = True
             
             self.renderer.draw_screen()
