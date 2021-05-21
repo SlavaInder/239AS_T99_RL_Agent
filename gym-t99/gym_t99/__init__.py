@@ -11,3 +11,8 @@ register(
     entry_point='gym_t99.envs:T99',
 )
 
+register(
+    id='t99sc-v0',
+    entry_point='gym_t99.envs:T99SC',
+)
+
