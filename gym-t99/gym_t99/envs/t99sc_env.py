@@ -203,8 +203,11 @@ class T99SC(gym.Env):
                             self._clear_rows(end_state.players[player_id].board)
                         # get rewarded
                         reward += num_lines * T99SC.settings["r_clear_line"]
+                        # calculate attack power
+                        # attack_power = self._check_power(end_state.players[player_id], num_lines)
+                        # a function to check for if all board is cleared
                         # push attacks to the queue
-                        pass
+
                         # get rewarded
                         pass
                         # depending on whether the piece was current or swap, update piece queue
@@ -243,9 +246,18 @@ class T99SC(gym.Env):
             elif np.sum(self.state.players[i].board.astype(bool)[0:5, 3:b_width - 3]) > 0:
                 # assign the position in the leaderboard
                 position = len(self.active_players) - np.sum(np.where(self.active_players is True, 1, 0))
-                self.active_players[player_id].place = position
+                self.state.players[i].place = position
                 # if so, update the list of active players
-                self.active_players[player_id] = False
+                self.active_players[i] = False
+
+    def _check_power(self, player, lines):
+
+        attack = 0
+        return attack
+
+    def _post_events(self, state, player_id, attack_strength):
+        # for each attack mode, post a corresponding event
+        pass
 
     def _apply_piece(self, board, piece):
         # stick piece to the board, and return new board
