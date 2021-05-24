@@ -1,4 +1,5 @@
 import gym
+import copy
 from gym import error, spaces, utils
 from gym.utils import seeding
 from .state import *
@@ -90,7 +91,7 @@ class T99(gym.Env):
             done = True
 
         next_state = self._observed_state()
-        reward = self.vanilla_tetris_reward()
+        reward = self.vanilla_tetris_reward(self.state.players[0])
 
         return next_state, reward, done, info
 
@@ -142,9 +143,7 @@ class T99(gym.Env):
         # swap a piece
         # note that after a piece was swapped, new piece starts at the top to avoid conflicts at collisions
         # this means that after a piece was placed, swapped piece corrdinates return to the top
-        if action == 5:
-            self.state.players[player_id].piece_current, self.state.players[player_id].piece_swap = \
-                self.state.players[player_id].piece_swap, self.state.players[player_id].piece_current
+        
         # Move piece left
         if action == 0:
             success = self._move(self.state.players[player_id].board,
@@ -167,6 +166,14 @@ class T99(gym.Env):
                                self.state.players[player_id].piece_current,
                                clockwise=False)
 
+        # NO OP
+        elif action == 4:
+            pass
+
+        elif action == 5:
+            self.state.players[player_id].piece_current, self.state.players[player_id].piece_swap = \
+                self.state.players[player_id].piece_swap, self.state.players[player_id].piece_current
+
     def _update_player(self, player_id):
         """
         function that waits drops player's piece by 1 if this drop is possible;
@@ -188,7 +195,8 @@ class T99(gym.Env):
             # check which lines are cleared
             cleared = np.prod(self.state.players[player_id].board.astype(bool), axis=1)
             # save the number of lines cleared to calculate attack power
-            attack = np.sum(cleared)
+            attack = np.sum(cleared) - 3
+
             self.state.players[player_id].num_lines_recently_cleared = attack
             # for each cleared line
             i = len(cleared) - 4
@@ -239,7 +247,7 @@ class T99(gym.Env):
             return False
 
     def _move(self, board, piece, dx, dy):
-        # moves a piece if possible. returns True if successfull, False if the move is impossible
+        # moves a piece if possible. returns True if successful, False if the move is impossible
         # update coordinates
         piece.x += dx
         piece.y += dy
@@ -283,7 +291,7 @@ class T99(gym.Env):
         for i, player in enumerate(self.state.players):
             # return everything related to the current player.
             if i == 0:
-                return_state.append((self._apply_piece(self.state.players[i].board.copy(), self.state.players[i].piece_current),
+                return_state.append((self._drop_piece(self.state.players[i].board.copy(), copy.deepcopy(self.state.players[i].piece_current)),
                     self.state.players[i].board,
                     self.state.players[i].piece_current.roll,
                     self.state.players[i].piece_swap,
@@ -298,5 +306,69 @@ class T99(gym.Env):
 
         return return_state
 
-    def vanilla_tetris_reward(self):
-        return 1 + ((self.state.players[0].num_lines_recently_cleared ** 2) * self.state.players[0].board.shape[1])
+    def vanilla_tetris_reward(self, player):
+        current_piece = copy.deepcopy(player.piece_current)
+        board = player.board.copy()
+        y_start = current_piece.y
+        # Hypothetically place piece at the bottom and find metrics
+        for i in range(y_start, board.shape[0]-3):
+            if self._collision(board, current_piece):
+                current_piece.y -= 1
+                if current_piece.y == 1:
+                    return 0
+                temp_board = self._apply_piece(board, current_piece)
+                bumpiness = self._bumpiness_contribution(temp_board)
+                holes_contribution = self._holes_contribution(temp_board)
+                num_full_rows = self._full_rows(temp_board)
+                heights = self._heights_contribution(temp_board)
+                return num_full_rows + bumpiness + holes_contribution + heights
+            else:
+                current_piece.y += 1
+        return 0
+
+    def _drop_piece(self, board, piece_current):
+        y_start = piece_current.y
+        for i in range(y_start, board.shape[0]-3):
+            if self._collision(board, piece_current):
+                piece_current.y -= 1
+                if piece_current.y == 1:
+                    return board
+                temp_board = self._apply_piece(board, piece_current)
+                return temp_board
+        return board
+
+
+    def _bumpiness_contribution(self, board):
+        mask = board != 0
+        invert_heights = np.where(mask.any(axis=0), np.argmax(mask, axis=0), board.shape[0])
+        heights = board.shape[0] - invert_heights
+        currs = heights[:-1]
+        nexts = heights[1:]
+        diffs = np.abs(currs - nexts)
+        total_bumpiness = np.sum(diffs)
+        return -1 * total_bumpiness * 0.18
+
+    def _holes_contribution(self, board):
+        num_holes = 0
+        for col in range(3, board.shape[1]-3):
+            row = 0
+            while row < board.shape[0] - 3 and board[row][col] == 0:
+                row += 1
+            while row < board.shape[0] - 3:
+                if board[row][col] == 0:
+                    num_holes += 1
+                row += 1
+        return -1 * num_holes * 0.36
+
+    def _heights_contribution(self, board):
+        mask = board != 0
+        invert_heights = np.where(mask.any(axis=0), np.argmax(mask, axis=0), board.shape[0])
+        heights = board.shape[0] - invert_heights
+        total_height = np.sum(heights)
+        return -1 * total_height * 0.51
+
+    def _full_rows(self, board):
+        rows = np.prod(board.astype(bool), axis=1)
+        num_full_rows = np.sum(rows) - 3
+        return 0.76 * num_full_rows
+
