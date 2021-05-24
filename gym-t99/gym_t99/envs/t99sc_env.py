@@ -172,31 +172,32 @@ class T99SC(gym.Env):
         """
         # init the tuple of options, holding next_states and corresponding rewards
         options = ([], [])
+        start_state = deepcopy(self.state)
         # align current piece and swap piece
-        self.state.players[player_id].piece_current.x = self.state.players[player_id].board.shape[1] // 2
-        self.state.players[player_id].piece_swap.x = self.state.players[player_id].board.shape[1] // 2
+        start_state.players[player_id].piece_current.x = start_state.players[player_id].board.shape[1] // 2
+        start_state.players[player_id].piece_swap.x = start_state.players[player_id].board.shape[1] // 2
+        # add garbage
+        self._apply_garbage(start_state.players[player_id])
         # check options for each piece
-        for piece in [self.state.players[player_id].piece_current, self.state.players[player_id].piece_swap]:
+        for piece in [start_state.players[player_id].piece_current, start_state.players[player_id].piece_swap]:
             # for each possible rotation
             for _ in range(4):
-                self._rotate_piece(self.state.players[player_id].board, piece)
+                self._rotate_piece(start_state.players[player_id].board, piece)
                 # for each possible x coordinate
                 for dx in np.arange(10) - 5:
                     # check if the coordinate is valid
-                    valid = self._move(self.state.players[player_id].board, piece, dx, 0)
+                    valid = self._move(start_state.players[player_id].board, piece, dx, 0)
                     if valid:
                         # if the coordinate is valid, drop the piece until it is stuck
                         stuck = False
                         while not stuck:
-                            stuck = not self._move(self.state.players[player_id].board, piece, 0, 1)
+                            stuck = not self._move(start_state.players[player_id].board, piece, 0, 1)
                         # init a copy of state and a reward
                         reward = 0
-                        end_state = deepcopy(self.state)
+                        end_state = deepcopy(start_state)
                         # apply piece to the copy
                         end_state.players[player_id].board = self._apply_piece(end_state.players[player_id].board,
                                                                                piece)
-                        # add garbage
-                        self._apply_garbage(end_state.players[player_id])
                         # clear lines
                         end_state.players[player_id].board, num_lines = \
                             self._clear_rows(end_state.players[player_id].board)
@@ -219,7 +220,7 @@ class T99SC(gym.Env):
                         options[1].append(reward)
 
                     # return piece to original place
-                    piece.x = self.state.players[player_id].board.shape[1] // 2
+                    piece.x = start_state.players[player_id].board.shape[1] // 2
                     piece.y = 2
 
         return options
@@ -270,14 +271,15 @@ class T99SC(gym.Env):
         missing_x = np.random.choice(np.arange(10))
         # update player's board
         # first move all existing lines to the top by "total_lines" lines
-        player.board[0:15 - total_lines, 3:b_width - 3] = player.board[total_lines:15, 3:b_width - 3]
+        player.board[0:25 - total_lines, 3:b_width - 3] = player.board[total_lines:25, 3:b_width - 3]
         # then clear free space
-        player.board[15 - total_lines:15, 3:b_width - 3] = 0
+        player.board[25 - total_lines:25, 3:b_width - 3] = 0
         # then fill free space with garbage
-        player.board[15 - total_lines:15, 3:3 + missing_x] = 8
-        player.board[15 - total_lines:15, 4 + missing_x:b_width - 3] = 8
+        player.board[25 - total_lines:25, 3:3 + missing_x] = 8
+        player.board[25 - total_lines:25, 4 + missing_x:b_width - 3] = 8
 
     def _clear_rows(self, board):
+        b_height, b_width = board.shape
         # check which lines are cleared
         cleared = np.prod(board.astype(bool), axis=1)
         # save the number of lines cleared to calculate attack power
