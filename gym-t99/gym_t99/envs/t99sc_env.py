@@ -281,7 +281,7 @@ class T99SC(gym.Env):
         # check which lines are cleared
         cleared = np.prod(board.astype(bool), axis=1)
         # save the number of lines cleared to calculate attack power
-        attack = np.sum(cleared)
+        attack = np.sum(cleared) - 3
         # for each cleared line
         i = len(cleared) - 4
         while i > 4:
