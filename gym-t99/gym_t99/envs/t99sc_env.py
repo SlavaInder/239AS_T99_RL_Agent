@@ -64,6 +64,7 @@ class T99SC(gym.Env):
         """
         # save the reward
         reward = action["reward"]
+        self.state.players[0].score += reward
         # empty variable for debug
         info = {}
 
@@ -108,7 +109,8 @@ class T99SC(gym.Env):
         return observation, reward, done, info
 
     def reset(self):
-        self.state = State99()
+        self.state = State99(num_players=len(self.active_players))
+        self.active_players = np.ones(len(self.active_players)).astype(bool)
 
     def render(self, mode='human',show_window=False,image_path="screenshot.png"):
         """
@@ -202,7 +204,9 @@ class T99SC(gym.Env):
                         end_state.players[player_id].board, num_lines = \
                             self._clear_rows(end_state.players[player_id].board)
                         # get rewarded
-                        reward += num_lines * T99SC.settings["r_clear_line"]
+                        reward +=  1 + (num_lines ** 2) * self.state.players[player_id].board.shape[1]
+
+                        end_state.players[player_id].num_lines_cleared = num_lines
                         # push attacks to the queue
                         pass
                         # get rewarded
@@ -243,9 +247,9 @@ class T99SC(gym.Env):
             elif np.sum(self.state.players[i].board.astype(bool)[0:5, 3:b_width - 3]) > 0:
                 # assign the position in the leaderboard
                 position = len(self.active_players) - np.sum(np.where(self.active_players is True, 1, 0))
-                self.active_players[player_id].place = position
+                self.state.players[i].place = position
                 # if so, update the list of active players
-                self.active_players[player_id] = False
+                self.active_players[i] = False
 
     def _apply_piece(self, board, piece):
         # stick piece to the board, and return new board
