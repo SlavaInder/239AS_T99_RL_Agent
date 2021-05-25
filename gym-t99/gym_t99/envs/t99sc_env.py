@@ -22,10 +22,12 @@ class T99SC(gym.Env):
     """
     metadata = {'render.modes': ['human', 'debug']}
     settings = {
-        "attack_delay": 5,      # after attack_delay number of steps expires, garbage moves from the queue to the board
-        "r_clear_line": 0.01,   # the reward for clearing one line
-        "r_send_line": 0.02,    # the reward for sending one line of garbage
-        "r_win": 1000           # the reward for winning
+        "attack_delay": 5,          # after attack_delay number of steps expires, garbage moves from the queue to the
+                                    # board
+        "power_multiplier": 0.25,   # bonus strength per ko
+        "r_clear_line": 0.01,       # the reward for clearing one line
+        "r_send_line": 0.02,        # the reward for sending one line of garbage
+        "r_win": 1000               # the reward for winning
     }
 
     def __init__(self, enemy, num_players=2):
@@ -204,12 +206,12 @@ class T99SC(gym.Env):
                         # get rewarded
                         reward += num_lines * T99SC.settings["r_clear_line"]
                         # calculate attack power
-                        # attack_power = self._check_power(end_state.players[player_id], num_lines)
+                        attack_power = self._check_power(end_state.players[player_id], num_lines)
                         # a function to check for if all board is cleared
                         # push attacks to the queue
-
+                        self._post_events(end_state, player_id, attack_power)
                         # get rewarded
-                        pass
+                        reward += attack_power * T99SC.settings["r_send_line"]
                         # depending on whether the piece was current or swap, update piece queue
                         if np.all(piece.matrix == end_state.players[player_id].piece_current.matrix):
                             self._next_piece(end_state.players[player_id])
@@ -232,12 +234,13 @@ class T99SC(gym.Env):
         # function that processes the attacks player's send to each other in the form of events
         for event in self.state.event_queue:
             # send num_lines lines to the target
-            for i in range(event.num_lines):
-                self.state.players[event.target].incoming_garbage.append(T99SC.settings["attack_delay"])
+            for i in range(int(event["num_lines"])):
+                self.state.players[event["target"]].incoming_garbage.append(T99SC.settings["attack_delay"])
 
     def _check_kos(self):
-        b_height, b_width = self.state.players[0].board.shape
         # function that updates the list of active players
+        b_height, b_width = self.state.players[0].board.shape
+        # loop through all players
         for i in range(len(self.state.players)):
             # if the player was kicked out and assigned a place
             if self.state.players[i].place is not None:
@@ -251,13 +254,128 @@ class T99SC(gym.Env):
                 self.active_players[i] = False
 
     def _check_power(self, player, lines):
-
-        attack = 0
+        # converts the number of cleared lines to the number of garbage lines based on player's condition
+        b_height, b_width = self.state.players[0].board.shape
+        # check if the whole board is cleared
+        if not np.sum(player.board.astype(bool)[5:24, 3:b_width - 3]) > 0:
+            # if so, increase the number of lines to send
+            lines = 10
+        # if not, calculate the number of lines based on table
+        # if 1 line is cleared, nothing is sent;
+        # if 2 lines are cleared, 1 is sent;
+        # if 3 lines are cleared, 2 are sent;
+        # if the number of lines == 4, 4 lines are sent
+        elif lines == 1:
+            lines = 0
+        elif lines in [2, 3]:
+            lines -= 1
+        # calculate attack power based on the number of cleared lines and player's ko's
+        attack = int(lines * (1 + player.KOs * T99SC.settings["power_multiplier"]))
         return attack
 
     def _post_events(self, state, player_id, attack_strength):
         # for each attack mode, post a corresponding event
-        pass
+        # check whether the game is in single-player mode, or you are a single survivor
+        if np.sum(self.active_players) > 1:
+            # init array of players to attack
+            idx = []
+            # attack the weakest strategy
+            if state.players[player_id].attack_strategy == 2:
+                # choose the first player who is not yourself and is active
+                # find the id-s of active players
+                id_act = np.where(self.atcive_players == True)[0].tolist()
+                # if the first player is not yourself
+                if id_act[0] != player_id:
+                    # choose it as a target
+                    target = id_act[0]
+                else:
+                    # else choose the second
+                    target = id_act[1]
+                # check how close the player is to ko
+                occupied_rows = np.sum(state.players[target].board[:-3, 3:13], axis=1)
+                target_score = np.where(occupied_rows > 0)[0]
+                # sweep through all active players
+                for i in range(len(state.players)):
+                    # except yourself
+                    if i != player_id and self.active_players[i] == True:
+                        # calculate the score of this player
+                        occupied_rows = np.sum(state.players[i].board[:-3, 3:13], axis=1)
+                        score = np.where(occupied_rows > 0)[0]
+                        # if the player is closer to KO, change target to them
+                        if score < target_score:
+                            target = i
+                            target_score = score
+                idx.append(target)
+            # attack the one with the highest KO-s strategy
+            elif state.players[player_id].attack_strategy == 3:
+                # choose the first player who is not yourself and is active
+                # find the id-s of active players
+                id_act = np.where(self.atcive_players == True)[0].tolist()
+                # if the first player is not yourself
+                if id_act[0] != player_id:
+                    # choose it as a target
+                    target = id_act[0]
+                else:
+                    # else choose the second
+                    target = id_act[1]
+                # check how many KOs this player has
+                target_score = state.players[target].KOs
+                # sweep through all active players
+                for i in range(len(state.players)):
+                    # except yourself
+                    if i != player_id and self.active_players[i] == True:
+                        if target_score < state.players[i].KOs:
+                            target = i
+                            target_score = state.players[i].KOs
+                idx.append(target)
+            # attack everyone who attacks you strategy
+            elif state.players[player_id].attack_strategy == 4:
+                # check if you are the closest to KO
+                occupied_rows = np.sum(state.players[player_id].board[:-3, 3:13], axis=1)
+                your_score = np.where(occupied_rows > 0)[0]
+                highest_KO = True
+                closest_KO = True
+                # sweep through all players
+                for i in range(len(state.players)):
+                    # except yourself
+                    if i != player_id and self.active_players[i] == True:
+                        # if their KO count is higher than yours, you are not the one with highest KOs
+                        if state.players[i].KOs > state.players[player_id].KOs:
+                            highest_KO = False
+                        # if they are closer to defeat than you
+                        occupied_rows = np.sum(state.players[i].board[:-3, 3:13], axis=1)
+                        score = np.where(occupied_rows > 0)[0]
+                        # then you are not the closest to KO
+                        if score < your_score:
+                            closest_KO = False
+                # sweep through all players
+                for i in range(len(state.players)):
+                    # except yourself
+                    if i != player_id and self.active_players[i] == True:
+                        # if you are close to KO, add all players that attack one closest to KO
+                        if closest_KO and state.players[i].attack_strategy == 2:
+                            idx.append(i)
+                        # if you have highest KO count, add all players that attack one with the highest KO
+                        elif highest_KO and state.players[i].attack_strategy == 3:
+                            idx.append(i)
+            # random attack strategy
+            if state.players[player_id].attack_strategy == 1 or len(idx) == 0:
+                # find a list of indices of all active players except the one with player_id
+                npc_ids = np.where(self.active_players == True)[0].tolist()
+                npc_ids.remove(player_id)
+                # choose at random who to attack
+                target = np.random.choice(npc_ids)
+                idx.append(target)
+
+            # attack all players in index
+            for target in idx:
+                # create an attack
+                attack_event = {
+                    "num_lines": attack_strength,
+                    "target": target
+                }
+                # post it
+                state.event_queue.append(attack_event)
 
     def _apply_piece(self, board, piece):
         # stick piece to the board, and return new board
