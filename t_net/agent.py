@@ -140,7 +140,7 @@ class AgentSC(object):
                 # get the expected score for the next state using policy net
                 q_next = self.policy_net(torch_next_states)[:, 0]
                 # calculate target
-                y_i = q_next + torch_rewards
+                y_i = q_next + torch.tensor(self.discount) * torch_rewards
                 # get the expected score for the current state using target net
                 q_current = self.target_net(torch_states)[:, 0]
 
