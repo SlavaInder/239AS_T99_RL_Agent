@@ -9,7 +9,8 @@ conda create -p name_of_environment python=3.8
 
 ### 2. Add virtual environment to jupyter notebook search list. If using conda, run:
 ````
-pip install --user ipykernel python -m ipykernel install --user --name=name_of_environment
+pip install --user ipykernel 
+python -m ipykernel install --user --name=name_of_environment
 ````
 
 ### 3. Activate environment
