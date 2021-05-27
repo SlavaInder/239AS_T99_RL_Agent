@@ -166,6 +166,7 @@ class Player99:
         # init attack strategy
         # out of 1, 2, 3, 4
         self.attack_strategy = 1
+        self.num_lines_cleared = 0
 
 
 class State99:
