@@ -74,3 +74,13 @@ def calculate_linear_features(state):
 
     return np.array([lines, holes, total_bumpiness, sum_height])
 
+
+def fetch_board(state):
+    # Creates a vector of features to represent a player's board.
+    num_rows = state.players[0].board.shape[0]
+    num_cols = state.players[0].board.shape[1]
+    # Extract the board
+    board = state.players[0].board[5:num_rows-3, 3:num_cols-3]
+    board = board.reshape(1, 20, 10)
+    return board
+
