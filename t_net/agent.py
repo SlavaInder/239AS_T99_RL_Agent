@@ -8,7 +8,8 @@ import random
 
 class AgentSC(object):
     '''
-    Deep Q Learning Agent for simplified tetris 99 environment. Implements Double DQN learning strategy
+    A classic deep Q Learning Agent for simplified tetris 99 environment. Implements DQN with fixed target and experience
+    replay learning strategy
     Args:
         env (T99SC):                    environment to train on
         discount (float):               how important is the future rewards compared to the immediate ones [0,1]
