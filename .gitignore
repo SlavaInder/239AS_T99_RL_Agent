@@ -5,6 +5,10 @@ name_of_environment/*
 */.ipynb_checkpoints/*
 *.pyc
 
+# pycharm util files
+*.idea*
+*.idea/*
+
 # Prerequisites
 *.d
 

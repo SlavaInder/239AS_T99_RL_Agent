@@ -25,7 +25,8 @@ class T99SC(gym.Env):
         "attack_delay": 5,          # after attack_delay number of steps expires, garbage moves from the queue to the
                                     # board
         "power_multiplier": 0.25,   # bonus strength per ko
-        "r_clear_line": 0.01,       # the reward for clearing one line
+        "r_survive": 0.001,          # the reward for surviving
+        "r_clear_line": 0.05,       # the reward for clearing one line
         "r_send_line": 0.02,        # the reward for sending one line of garbage
         "r_win": 1000               # the reward for winning
     }
@@ -102,7 +103,8 @@ class T99SC(gym.Env):
         # if game continues
         if not done:
             # calculate possible next states
-            observation = self._observe(0)
+            # observation = self._observe(0)
+            observation = ([], [])
         else:
             # or return empty tuple
             observation = ([], [])
@@ -110,7 +112,9 @@ class T99SC(gym.Env):
         return observation, reward, done, info
 
     def reset(self):
-        self.state = State99()
+        self.state = State99(len(self.state.players))
+        # an array to keep track of who is in the game
+        self.active_players = np.ones(len(self.state.players)).astype(bool)
 
     def render(self, mode='human',show_window=False,image_path="screenshot.png"):
         """
@@ -195,7 +199,7 @@ class T99SC(gym.Env):
                         while not stuck:
                             stuck = not self._move(start_state.players[player_id].board, piece, 0, 1)
                         # init a copy of state and a reward
-                        reward = 0
+                        reward = T99SC.settings["r_survive"]
                         end_state = deepcopy(start_state)
                         # apply piece to the copy
                         end_state.players[player_id].board = self._apply_piece(end_state.players[player_id].board,
@@ -205,6 +209,8 @@ class T99SC(gym.Env):
                             self._clear_rows(end_state.players[player_id].board)
                         # get rewarded
                         reward += num_lines * T99SC.settings["r_clear_line"]
+                        # record num_lines
+                        end_state.players[player_id].num_lines_cleared = num_lines
                         # calculate attack power
                         attack_power = self._check_power(end_state.players[player_id], num_lines)
                         # a function to check for if all board is cleared
