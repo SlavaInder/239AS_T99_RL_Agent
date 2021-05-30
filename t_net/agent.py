@@ -160,28 +160,25 @@ class AgentSC(object):
 
         return cumulative_rewards, steps_per_epoch
 
-    #Saving functionality
-        #Not working or tested, because there is no self.model
-        #But should be good starting point, commented out to not mess with anything for now
-        
-    # def save_state(self,path="models/agent-sc-model.pth"):
-        
-    #     torch.save({
-    #         'model_state_dict': self.model.state_dict(), 
-    #         'optimizer_state_dict': self.optimizer.state_dict(),
-    #         'discount' : self.discount,
-    #         'replay_start_size' : self.replay_start_size,
-    #         'exploration_rate' : self.exploration_rate,
-    #         'mem_size' : self.mem_size,
-    #         }, path)
+    def save_state(self,path="models/agent-sc-model.pth"):     
+        torch.save({
+            'target_net_state': self.target_net.state_dict(),
+            'policy_net_state': self.policy_net.state_dict(), 
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'discount' : self.discount,
+            'replay_start_size' : self.replay_start_size,
+            'exploration_rate' : self.exploration_rate,
+            'mem_size' : self.mem_size,
+            }, path)
 
-    # def resume_state(self,path):
-    #     checkpoint = torch.load(path)
-    #     self.model.load_state_dict(checkpoint['model_state_dict'])
-    #     self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    #     self.discount = checkpoint['discount']
-    #     self.replay_start_size = checkpoint['replay_start_size']
-    #     self.exploration_rate = checkpoint['exploration_rate']
-    #     self.memory = deque(maxlen=checkpoint['mem_size'])
+    def resume_state(self,path):
+        checkpoint = torch.load(path)
+        self.target_net.load_state_dict(checkpoint['target_net_state'])
+        self.policy_net.load_state_dict(checkpoint['policy_net_state'])
+        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        self.discount = checkpoint['discount']
+        self.replay_start_size = checkpoint['replay_start_size']
+        self.exploration_rate = checkpoint['exploration_rate']
+        self.memory = deque(maxlen=checkpoint['mem_size'])
 
-    #     #Don't forget to do .eval() or .train() now!
+        #Don't forget to do .eval() or .train() now!
