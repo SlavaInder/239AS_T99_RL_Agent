@@ -50,7 +50,9 @@ class AgentSC(object):
         self.target_net.to(device)
         # initialize memory
         self.cumulative_rewards = [0]
-        self.steps_per_epoch = [0]
+        self.steps_per_episode = [0]
+        # initialize episode
+        self.episode = 0
 
     def add_to_memory(self, current_state, next_state, reward, done):
         # Adds a play to the replay memory buffer
@@ -91,9 +93,6 @@ class AgentSC(object):
         '''
         Trains the agent by following DQN-learning algorithm
         '''
-        # initialize epoch
-        epoch = 0
-
         # repeats the algorithm steps times
         for i in range(steps):
             # record the step
@@ -106,15 +105,15 @@ class AgentSC(object):
             next_state_features = self.get_features(self.env.state)
             # record the current state, reward, next state, done in the cyclic buffer for future replay
             self.add_to_memory(current_state_features, reward, next_state_features, done)
-            # record cumulative reward and steps done in the current epoch
-            self.cumulative_rewards[epoch] += reward
-            self.steps_per_epoch[epoch] += 1
+            # record cumulative reward and steps done in the current episode
+            self.cumulative_rewards[self.episode] += reward
+            self.steps_per_episode[self.episode] += 1
             # if the environment is done, reboot it and reset counters
             if done:
                 self.env.reset()
-                epoch += 1
+                self.episode += 1
                 self.cumulative_rewards.append(0)
-                self.steps_per_epoch.append(0)
+                self.steps_per_episode.append(0)
 
             # check if there is enough data to start training
             if len(self.memory) > self.replay_start_size:
