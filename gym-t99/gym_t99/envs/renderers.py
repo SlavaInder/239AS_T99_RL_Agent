@@ -61,6 +61,11 @@ class Renderer():
         self.SMALL_PADDING_PX, self.MEDIUM_PADDING_PX, self.LARGE_PADDING_PX = 2 * self.SECONDARY_BOARD_GRIDSIZE, 6 * self.SECONDARY_BOARD_GRIDSIZE, self.MAIN_BOARD_GRIDSIZE
         self.VERT_PADDING_PX, self.SIDE_PADDING_PX = self.LARGE_PADDING_PX, self.SMALL_PADDING_PX
 
+        #Hardcode the case where we only have 2 players
+        if len(players) == 2:
+            self.two_player_init(show_window=show_window)
+            return
+
         # Set widths of important areas
         self.NPC_WIDTH_PX = 7 * self.SECONDARY_BOARD_GRIDSIZE * self.BOARD_WIDTH + 6 * self.SMALL_PADDING_PX  # Width of single side of NPCS
         self.NPC_HEIGHT_PX = 7 * self.SECONDARY_BOARD_GRIDSIZE * self.BOARD_HEIGHT + 6 * self.MEDIUM_PADDING_PX  # Width of single side of NPCS
@@ -99,7 +104,7 @@ class Renderer():
                 x_orig = x_init + x_step * x
                 y_orig = y_init + y_step * y
                 new_board = BoardRenderer(self.npcs[n], x_orig, y_orig, self.SECONDARY_BOARD_GRIDSIZE, self.window,
-                                          self.top_rows_ignore, self.num_walls_side, self.num_walls_bottom)
+                                          self.top_rows_ignore, self.num_walls_side, self.num_walls_bottom,False)
                 self.npc_board_renderers.append(new_board)
                 n += 1
 
@@ -115,7 +120,7 @@ class Renderer():
                 x_orig = x_init + x_step * x
                 y_orig = y_init + y_step * y
                 new_board = BoardRenderer(self.npcs[n], x_orig, y_orig, self.SECONDARY_BOARD_GRIDSIZE, self.window,
-                                          self.top_rows_ignore, self.num_walls_side, self.num_walls_bottom)
+                                          self.top_rows_ignore, self.num_walls_side, self.num_walls_bottom,False)
                 self.npc_board_renderers.append(new_board)
                 n += 1
 
@@ -125,6 +130,53 @@ class Renderer():
         y_orig = self.VERT_PADDING_PX + int(self.MAIN_BOARD_GRIDSIZE * 1.5)
         self.player_board = PlayerRenderer(self.player, x_orig, y_orig, self.MAIN_BOARD_GRIDSIZE, self.window,
                                            self.top_rows_ignore, self.num_walls_side, self.num_walls_bottom)
+
+    def two_player_init(self,show_window=False):
+        '''
+        Init to run if we are only given 2 players
+        '''
+        #Override secondary gridsize
+        self.SECONDARY_BOARD_GRIDSIZE = max(1, int(self.MAIN_BOARD_GRIDSIZE // 2))
+
+        # Set widths of important areas
+        self.NPC_WIDTH_PX =  self.SECONDARY_BOARD_GRIDSIZE * self.BOARD_WIDTH  # Width of single side of NPCS
+        self.NPC_HEIGHT_PX =  self.SECONDARY_BOARD_GRIDSIZE * self.BOARD_HEIGHT  # Width of single side of NPCS
+
+        swap_width = int(self.MAIN_BOARD_GRIDSIZE // 2) * 5
+        queue_width = int(self.MAIN_BOARD_GRIDSIZE // 2) * 5
+        self.PLAYER_WIDTH_PX = swap_width + self.MAIN_BOARD_GRIDSIZE * self.BOARD_WIDTH + queue_width  # Left swap area + board size + right next pieces + right queue piece area
+        self.PLAYER_HEIGHT_PX = self.MAIN_BOARD_GRIDSIZE * self.BOARD_HEIGHT 
+
+        # Set full dimensions of the board
+        self.FULL_WIDTH_PX = 2 * self.SIDE_PADDING_PX + 2 * self.MEDIUM_PADDING_PX + 2 * self.NPC_WIDTH_PX + self.PLAYER_WIDTH_PX
+        self.FULL_HEIGHT_PX = self.VERT_PADDING_PX + int(self.MAIN_BOARD_GRIDSIZE * 1.5) + self.PLAYER_HEIGHT_PX + self.VERT_PADDING_PX
+
+        # Create the window
+        # ----------------
+        if not show_window:
+            environ["SDL_VIDEODRIVER"] = "dummy"  # Makes window not appear
+
+        pygame.init()
+        pygame.display.set_caption('Tetris')
+        self.window = pygame.display.set_mode((self.FULL_WIDTH_PX, self.FULL_HEIGHT_PX))
+
+        # Create the NPC Board
+        # ---------------------
+        self.npc_board_renderers = []
+
+        x_orig = self.SIDE_PADDING_PX
+        y_orig = int(self.VERT_PADDING_PX * 3)
+        new_board = BoardRenderer(self.npcs[0], x_orig, y_orig, self.SECONDARY_BOARD_GRIDSIZE, self.window,
+                                    self.top_rows_ignore, self.num_walls_side, self.num_walls_bottom,True)
+        self.npc_board_renderers.append(new_board)
+
+        # Create the Players Board
+        # -----------------------
+        x_orig = self.SIDE_PADDING_PX + self.NPC_WIDTH_PX + self.MEDIUM_PADDING_PX + swap_width
+        y_orig = self.VERT_PADDING_PX + int(self.MAIN_BOARD_GRIDSIZE * 1.5)
+        self.player_board = PlayerRenderer(self.player, x_orig, y_orig, self.MAIN_BOARD_GRIDSIZE, self.window,
+                                           self.top_rows_ignore, self.num_walls_side, self.num_walls_bottom)
+
 
     def update_state(self, players):
         '''
@@ -232,7 +284,8 @@ class BoardRenderer():
                  window,
                  top_rows_ignore,
                  num_walls_side,
-                 num_walls_bottom):
+                 num_walls_bottom,
+                 two_player_mode):
         '''
         params:
             board : 2D np matrix like described in Player99 class
@@ -244,6 +297,7 @@ class BoardRenderer():
             num_walls_side : int, number of rows on side, we will not be drawing these
             num_walls_bottom : int, number of rows on bottom, we will not be drawing these
         '''
+        self.two_player_mode = two_player_mode
         self.player = player
         self.window = window
         self.board = player.board
@@ -344,19 +398,14 @@ class BoardRenderer():
             return
         x_px = grid_x * self.GRIDSIZE + self.ORIGIN_X_PX
         y_px = grid_y * self.GRIDSIZE + self.ORIGIN_Y_PX
+        if piece_int not in Renderer.piece_colors.keys():
+            piece_int = 10
         clr = Renderer.piece_colors[piece_int]
         pygame.draw.rect(self.window, clr, (x_px + 1, y_px + 1, self.GRIDSIZE, self.GRIDSIZE), 0)
 
-        # if piece_int == 0: #Skip empty squares
-        #     return
-        # x_px = grid_x * self.GRIDSIZE + self.ORIGIN_X_PX
-        # y_px = grid_y * self.GRIDSIZE + self.ORIGIN_Y_PX
-        # clr = Renderer.piece_colors[piece_int]
-        # #pygame.draw.rect(self.window, clr, (x_px, y_px, self.GRIDSIZE-(2*self.SHADOW_SIZE_PX), self.GRIDSIZE-(2*self.SHADOW_SIZE_PX)), 0)
-        # pygame.draw.rect(self.window, clr, (x_px+1, y_px+1, self.GRIDSIZE+1, self.GRIDSIZE+1), 0)
-
-        # #if piece_int != 10: #Add highlight around all non-grey pieces
-        # #    pygame.draw.rect(self.window, Renderer.WHITE, (x_px, y_px, self.GRIDSIZE, self.GRIDSIZE), self.SHADOW_SIZE_PX) #Outline
+        if self.two_player_mode and piece_int != 10:  # Add highlight around all non-grey pieces
+            pygame.draw.rect(self.window, Renderer.WHITE, (x_px + 1, y_px + 1, self.GRIDSIZE , self.GRIDSIZE ),
+                             self.SHADOW_SIZE_PX)  # Outline
 
 
 class PlayerRenderer(BoardRenderer):
@@ -375,7 +424,7 @@ class PlayerRenderer(BoardRenderer):
             num_walls_bottom : int, number of rows on bottom, we will not be drawing these
         '''
         super().__init__(player, origin_x_px, origin_y_px, gridsize, window, top_rows_ignore, num_walls_side,
-                         num_walls_bottom)
+                         num_walls_bottom,False)
         self.HALF_GRIDSIZE = int(self.GRIDSIZE // 2)
 
         self.position = None
@@ -471,6 +520,8 @@ class PlayerRenderer(BoardRenderer):
             return
         x_px = grid_x * self.GRIDSIZE + self.ORIGIN_X_PX
         y_px = grid_y * self.GRIDSIZE + self.ORIGIN_Y_PX
+        if piece_int not in Renderer.piece_colors.keys():
+            piece_int = 10
         clr = Renderer.piece_colors[piece_int]
         pygame.draw.rect(self.window, clr, (x_px + 1, y_px + 1, self.GRIDSIZE - (2 * self.SHADOW_SIZE_PX) - 1,
                                             self.GRIDSIZE - (2 * self.SHADOW_SIZE_PX) - 1), 0)
@@ -485,6 +536,8 @@ class PlayerRenderer(BoardRenderer):
         x_px = grid_x * gridsize + grid_orig_x
         y_px = grid_y * gridsize + grid_orig_y
         if custom_clr == None:
+            if piece_int not in Renderer.piece_colors.keys():
+                piece_int = 10
             custom_clr = Renderer.piece_colors[piece_int]
         pygame.draw.rect(self.window, custom_clr,
                          (x_px, y_px, gridsize - (2 * self.SHADOW_SIZE_PX), gridsize - (2 * self.SHADOW_SIZE_PX)), 0)

@@ -152,18 +152,21 @@ class AgentSC(object):
                 # update weights
                 self.policy_net.load_state_dict(self.target_net.state_dict())
 
-    def save_state(self,path="models/agent-sc-model.pth"):     
+    def save_state(self,path):     
         torch.save({
             'target_net_state': self.target_net.state_dict(),
             'policy_net_state': self.policy_net.state_dict(), 
             'optimizer_state_dict': self.optimizer.state_dict(),
-            'discount': self.discount,
-            'replay_start_size': self.replay_start_size,
-            'exploration_rate': self.exploration_rate,
-            'mem_size': len(self.memory),
+            'discount' : self.discount,
+            'replay_start_size' : self.replay_start_size,
+            'exploration_rate' : self.exploration_rate,
+            'mem_size' : self.memory.maxlen,
+            'cumulative_rewards' : self.cumulative_rewards,
+            'steps_per_episode' : self.steps_per_episode
             }, path)
 
-    def resume_state(self, path):
+    def load_state(self,path):
+        # Don't forget to do .eval() or .train() now!
         checkpoint = torch.load(path)
         self.target_net.load_state_dict(checkpoint['target_net_state'])
         self.policy_net.load_state_dict(checkpoint['policy_net_state'])
@@ -172,5 +175,5 @@ class AgentSC(object):
         self.replay_start_size = checkpoint['replay_start_size']
         self.exploration_rate = checkpoint['exploration_rate']
         self.memory = deque(maxlen=checkpoint['mem_size'])
-
-        # Don't forget to do .eval() or .train() now!
+        self.cumulative_rewards = checkpoint['cumulative_rewards']
+        self.steps_per_episode = checkpoint['steps_per_episode']
