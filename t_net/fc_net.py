@@ -27,15 +27,15 @@ class FCNet(nn.Module):
 
 class FCBoardNet(nn.Module):
     def __init__(self):
-        super(FCNet, self).__init__()
+        super(FCBoardNet, self).__init__()
 
         self.model = nn.Sequential(
             nn.Flatten(),
-            nn.Sequential(nn.Linear(200, 200), nn.ReLU(inplace=True)),
+            nn.Sequential(nn.Linear(201, 100), nn.ReLU(inplace=True)),
             nn.ReLU(),
-            nn.Sequential(nn.Linear(200, 200), nn.ReLU(inplace=True)),
+            nn.Sequential(nn.Linear(100, 100), nn.ReLU(inplace=True)),
             nn.ReLU(),
-            nn.Sequential(nn.Linear(200, 1), nn.ReLU(inplace=True)),
+            nn.Sequential(nn.Linear(100, 1), nn.ReLU(inplace=True)),
         )
 
         self._create_weights()

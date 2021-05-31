@@ -91,4 +91,17 @@ def calculate_mixed_cnn_features(state):
     pass
 
 
+def calculate_mixed_fc_features(state):
+    # creates an array that consists of game board flattened and the number of lines cleared
+    player = state.players[0]
+    num_rows = state.players[0].board.shape[0]
+    num_cols = state.players[0].board.shape[1]
+    # Extract the board
+    board = state.players[0].board[5:num_rows-3, 3:num_cols-3].astype(bool).astype(int)
+    # flatten the board
+    board = board.flatten()
+    # append the array with the number of lines cleared
+    lines = player.num_lines_cleared
+    board = np.append(board, lines)
+    return board
 
