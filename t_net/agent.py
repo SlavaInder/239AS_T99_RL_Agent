@@ -48,15 +48,13 @@ class AgentSC(object):
         # send the nets to the device
         self.policy_net.to(device)
         self.target_net.to(device)
+        # initialize memory
+        self.cumulative_rewards = [0]
+        self.steps_per_epoch = [0]
 
     def add_to_memory(self, current_state, next_state, reward, done):
         # Adds a play to the replay memory buffer
         self.memory.append((current_state, next_state, reward, done))
-
-    def predict_value(self, state):
-        # Predicts the score for a certain state
-        # remember that NN always returns a vector, even if its size == 1. So prediction actually lies in FCNet(inp)[0]
-        return self.model(state)[0]
 
     def act(self):
         '''
@@ -93,9 +91,6 @@ class AgentSC(object):
         '''
         Trains the agent by following DQN-learning algorithm
         '''
-        # we will save the following statistics about the data
-        cumulative_rewards = [0]
-        steps_per_epoch = [0]
         # initialize epoch
         epoch = 0
 
@@ -112,14 +107,14 @@ class AgentSC(object):
             # record the current state, reward, next state, done in the cyclic buffer for future replay
             self.add_to_memory(current_state_features, reward, next_state_features, done)
             # record cumulative reward and steps done in the current epoch
-            cumulative_rewards[epoch] += reward
-            steps_per_epoch[epoch] += 1
+            self.cumulative_rewards[epoch] += reward
+            self.steps_per_epoch[epoch] += 1
             # if the environment is done, reboot it and reset counters
             if done:
                 self.env.reset()
                 epoch += 1
-                cumulative_rewards.append(0)
-                steps_per_epoch.append(0)
+                self.cumulative_rewards.append(0)
+                self.steps_per_epoch.append(0)
 
             # check if there is enough data to start training
             if len(self.memory) > self.replay_start_size:
@@ -158,8 +153,6 @@ class AgentSC(object):
                 # update weights
                 self.policy_net.load_state_dict(self.target_net.state_dict())
 
-        return cumulative_rewards, steps_per_epoch
-
     def save_state(self,path="models/agent-sc-model.pth"):     
         torch.save({
             'target_net_state': self.target_net.state_dict(),
@@ -181,4 +174,4 @@ class AgentSC(object):
         self.exploration_rate = checkpoint['exploration_rate']
         self.memory = deque(maxlen=checkpoint['mem_size'])
 
-        #Don't forget to do .eval() or .train() now!
+        # Don't forget to do .eval() or .train() now!

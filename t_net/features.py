@@ -1,6 +1,7 @@
 # Store all features you can come up with here
 import numpy as np
 
+
 def number_of_holes(board):
     # Number of holes in the board (empty square with at least one block above it
     holes = 0
@@ -80,7 +81,14 @@ def fetch_board(state):
     num_rows = state.players[0].board.shape[0]
     num_cols = state.players[0].board.shape[1]
     # Extract the board
-    board = state.players[0].board[5:num_rows-3, 3:num_cols-3]
+    board = state.players[0].board[5:num_rows-3, 3:num_cols-3].astype(bool).astype(int)
     board = board.reshape(1, 20, 10)
     return board
+
+
+def calculate_mixed_cnn_features(state):
+    # creates a that consists of game board and
+    pass
+
+
 
