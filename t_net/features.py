@@ -87,8 +87,17 @@ def fetch_board(state):
 
 
 def calculate_mixed_cnn_features(state):
-    # creates a that consists of game board and
-    pass
+    # get a board and add one more dimension to it
+    board = fetch_board(state).reshape(1, 20, 10, 1)
+    # create an empty layer to hold a single value - number of cleared lines
+    empty_layer = np.zeros((1, 20, 10, 1))
+    # fill this value
+    lines = state.players[0].num_lines_cleared
+    empty_layer[0, 0, 0, 0] = lines
+    # append the board with line layer
+    board = np.append(board, empty_layer, axis=3)
+
+    return board
 
 
 def calculate_mixed_fc_features(state):
