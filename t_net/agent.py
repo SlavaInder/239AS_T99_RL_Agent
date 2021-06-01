@@ -359,7 +359,7 @@ class AgentDoubleSC(object):
                 # pop up a message
                 print("policy net updated")
                 # update weights
-                self.policy_net.load_state_dict(self.target_net.state_dict())
+                self.target_net.load_state_dict(self.primary_net.state_dict())
 
     def save_state(self,path):
         torch.save({
