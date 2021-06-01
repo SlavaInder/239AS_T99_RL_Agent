@@ -37,8 +37,6 @@ class FCBoardNet(nn.Module):
             nn.ReLU(),
             nn.Sequential(nn.Linear(100, 100), nn.ReLU(inplace=True)),
             nn.ReLU(),
-            nn.Sequential(nn.Linear(100, 100), nn.ReLU(inplace=True)),
-            nn.ReLU(),
             nn.Sequential(nn.Linear(100, 1), nn.ReLU(inplace=True)),
         )
 
