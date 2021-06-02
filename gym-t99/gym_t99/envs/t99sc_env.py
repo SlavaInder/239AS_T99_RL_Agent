@@ -75,18 +75,29 @@ class T99SC(gym.Env):
         next_states = [None for _ in range(len(self.state.players))]
         # register the agent's step and event queue it created
         next_states[0] = action["state"].players[0]
+
+        #If we have 2 players, and an enemy 'AI' was not passed in, then assume changes to second player are already in state
+        if len(self.state.players) == 2 and self.enemy == None: 
+            next_states[1] = action["state"].players[1]
+        
+        #Debugging, delete later
+        if action["state"].players[1].board.shape != (28,16):
+            print("Issue!, board size is: {}".format(action["state"].players[1].board.shape))
+            
         self.state.event_queue.extend(action["state"].event_queue)
         # process other player's moves
-        for i in range(1, len(self.state.players)):
-            # if the player is active
-            if self.active_players[i]:
-                # observe which action an npc can take
-                npc_options, _ = self._observe(i)
-                # choose the best action
-                npc_action = self.enemy.action(npc_options)
-                # register the npc's step and event queue it created
-                next_states[i] = npc_action.players[i]
-                self.state.event_queue.extend(npc_action.event_queue)
+        
+        if self.enemy != None: #If a 'enemy' was passed in follow that logic
+            for i in range(1, len(self.state.players)):
+                # if the player is active
+                if self.active_players[i]:
+                    # observe which action an npc can take
+                    npc_options, _ = self._observe(i)
+                    # choose the best action
+                    npc_action = self.enemy.action(npc_options)
+                    # register the npc's step and event queue it created
+                    next_states[i] = npc_action.players[i]
+                    self.state.event_queue.extend(npc_action.event_queue)
 
         # update game's state
         self.state.players = next_states
