@@ -103,8 +103,8 @@ class T99SC(gym.Env):
         # if game continues
         if not done:
             # calculate possible next states
-            # observation = self._observe(0)
-            observation = ([], [])
+            observation = self._observe(0)
+            # observation = ([], [])
         else:
             # or return empty tuple
             observation = ([], [])
