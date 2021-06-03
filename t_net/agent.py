@@ -5,10 +5,11 @@ import numpy as np
 import torch
 import random
 
-class AgentSCAlt_Two_Player(object):
+
+class AgentSCAlt(object):
     '''
     A classic deep Q Learning Agent for simplified tetris 99 environment. Implements DQN with fixed target and
-    experience replay learning strategy. Designed for 2 players
+    experience replay learning strategy
     Args:
         env (T99SC):                    environment to train on
         discount (float):               how important is the future rewards compared to the immediate ones [0,1]
@@ -27,9 +28,6 @@ class AgentSCAlt_Two_Player(object):
         self.memory = deque(maxlen=mem_size)
         # tetris environment
         self.env = env
-        if len(self.env.state.players) != 2:
-            print("Environment must have 2 players!")
-            exit()
         # gamma
         self.discount = discount
         # specifies a threshold, after which the amount of collected data is sufficient for starting training
@@ -37,7 +35,7 @@ class AgentSCAlt_Two_Player(object):
         # set up nets
         self.primary_net = deepcopy(net)
         self.target_net = deepcopy(net)
-        self.opponent_net = deepcopy(net)
+        self.opponent_net = deepcopy(net) #Changed this for multiplay - Ian
         self.optimizer = torch.optim.Adam(self.primary_net.parameters(), lr=learning_rate)
         self.criterion = criterion
         # choose a function to extract features
@@ -50,6 +48,7 @@ class AgentSCAlt_Two_Player(object):
         # send the nets to the device
         self.primary_net.to(device)
         self.target_net.to(device)
+        self.opponent_net.to(device) #Changed this for multiplay - Ian
         # initialize memory
         self.cumulative_rewards = [0]
         self.steps_per_episode = [0]
@@ -64,7 +63,6 @@ class AgentSCAlt_Two_Player(object):
         '''
         Makes a single-step update in accordance with epsilon-greedy strategy
         '''
-
         '''Act for agent'''
         # observe the options we have for reward and next states of the player controlled by the agent
         options, rewards = self.env._observe(0)
@@ -84,7 +82,9 @@ class AgentSCAlt_Two_Player(object):
             predictions = self.primary_net(next_states)[:, 0]
             # choose greedy action
             index = torch.argmax(predictions).item()
-        
+
+        #Changed this for multiplay - Ian
+
         rewards_1 = rewards[index]
         end_state_1 = options[index]
 
@@ -113,11 +113,12 @@ class AgentSCAlt_Two_Player(object):
             "reward": rewards_1,
             "state": end_state_1
         }
+
         _, reward, done, _ = self.env.step(action)
 
+        #End of change - Ian
+
         return reward, done
-
-
 
     def optimal_action(self):
         # finds optimal action using target net
@@ -136,7 +137,7 @@ class AgentSCAlt_Two_Player(object):
 
         return options[index]
 
-    def train(self, batch_size=128, update_freq=2000, steps=10000,opponent_update_freq=4000):
+    def train(self, batch_size=128, update_freq=2000, steps=10000, opponent_update_freq=4000):
         '''
         Trains the agent by following Double DQN-learning algorithm
         '''
@@ -220,13 +221,16 @@ class AgentSCAlt_Two_Player(object):
                 # update weights
                 self.target_net.load_state_dict(self.primary_net.state_dict())
             
+            #Changed this for multiplay - Ian
+
             # if it's time to update opponent net
             if i % opponent_update_freq == 0:
                 # pop up a message
                 print("opponent net updated")
                 # update weights
                 self.opponent_net.load_state_dict(self.primary_net.state_dict())
-
+            
+            #End of change - Ian
 
     def save_state(self,path):
         torch.save({
@@ -238,8 +242,7 @@ class AgentSCAlt_Two_Player(object):
             'exploration_rate' : self.exploration_rate,
             'mem_size' : self.memory.maxlen,
             'cumulative_rewards' : self.cumulative_rewards,
-            'steps_per_episode' : self.steps_per_episode,
-            'episode' : self.episode
+            'steps_per_episode' : self.steps_per_episode
             }, path)
 
     def load_state(self,path):
@@ -254,5 +257,3 @@ class AgentSCAlt_Two_Player(object):
         self.memory = deque(maxlen=checkpoint['mem_size'])
         self.cumulative_rewards = checkpoint['cumulative_rewards']
         self.steps_per_episode = checkpoint['steps_per_episode']
-        self.episode = checkpoint['episode']
-
