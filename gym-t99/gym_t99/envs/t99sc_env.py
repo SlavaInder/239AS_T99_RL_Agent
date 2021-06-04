@@ -73,14 +73,6 @@ class T99SC(gym.Env):
         next_states = [None for _ in range(len(self.state.players))]
         # register the agent's step and event queue it created
         
-        # #Changed this for multiplay - Ian
-        # next_states[0] = action["state"].players[0]
-        # next_states[1] = action["state"].players[1]
-
-        # if action["state"].players[1].board.shape != (28,16): #Debugging, had an issue with board size
-        #     print("Issue!, board size is: {}".format(action["state"].players[1].board.shape))
-
-        # #End of change -Ian
 
         for i in range(len(self.state.players)):
             next_states[i] = action["state"].players[i]
@@ -104,7 +96,7 @@ class T99SC(gym.Env):
         if not done:
             # calculate possible next states
             # observation = self._observe(0)
-            observation = ([], []) #Changed this for multiplay - Ian
+            observation = ([], []) 
         else:
             # or return empty tuple
             observation = ([], [])

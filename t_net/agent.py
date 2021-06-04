@@ -37,7 +37,7 @@ class AgentSCAlt(object):
         self.target_net = deepcopy(net)
         
         
-        self.opponent_net = deepcopy(net) #Changed this for multiplay - Ian
+        self.opponent_net = deepcopy(net) 
         
         
         self.optimizer = torch.optim.Adam(self.primary_net.parameters(), lr=learning_rate)
