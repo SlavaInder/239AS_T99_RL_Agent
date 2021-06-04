@@ -40,8 +40,6 @@ class T99SC(gym.Env):
                                     this is the previous iteration of AI
         :param num_players: number of competing agents (ideally, 99) in the game
         """
-        # initialize AI for NPC-s
-        self.enemy = enemy
         # initialize state
         self.state = State99(num_players)
         # an array to keep track of who is in the game
@@ -75,14 +73,17 @@ class T99SC(gym.Env):
         next_states = [None for _ in range(len(self.state.players))]
         # register the agent's step and event queue it created
         
-        #Changed this for multiplay - Ian
-        next_states[0] = action["state"].players[0]
-        next_states[1] = action["state"].players[1]
+        # #Changed this for multiplay - Ian
+        # next_states[0] = action["state"].players[0]
+        # next_states[1] = action["state"].players[1]
 
-        if action["state"].players[1].board.shape != (28,16): #Debugging, had an issue with board size
-            print("Issue!, board size is: {}".format(action["state"].players[1].board.shape))
+        # if action["state"].players[1].board.shape != (28,16): #Debugging, had an issue with board size
+        #     print("Issue!, board size is: {}".format(action["state"].players[1].board.shape))
 
-        #End of change -Ian
+        # #End of change -Ian
+
+        for i in range(len(self.state.players)):
+            next_states[i] = action["state"].players[i]
 
         self.state.event_queue.extend(action["state"].event_queue)
        
@@ -102,7 +103,7 @@ class T99SC(gym.Env):
         # if game continues
         if not done:
             # calculate possible next states
-            #observation = self._observe(0)
+            # observation = self._observe(0)
             observation = ([], []) #Changed this for multiplay - Ian
         else:
             # or return empty tuple
@@ -241,6 +242,8 @@ class T99SC(gym.Env):
             # send num_lines lines to the target
             for i in range(int(event["num_lines"])):
                 self.state.players[event["target"]].incoming_garbage.append(T99SC.settings["attack_delay"])
+        # reset event_queue
+        self.state.event_queue = []
 
     def _check_kos(self):
         # function that updates the list of active players

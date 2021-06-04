@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 
@@ -52,3 +53,38 @@ class FCBoardNet(nn.Module):
         q = self.model(x)
 
         return q
+
+
+class FCNetMultiplayer(nn.Module):
+    def __init__(self, num_players):
+        super(FCNetMultiplayer, self).__init__()
+
+        self.layer1 = nn.Sequential(nn.Linear(4, 64), nn.ReLU(inplace=True))
+        self.layer2 = nn.Sequential(nn.Linear(64, 64), nn.ReLU(inplace=True))
+
+        self.attack_layer1 = nn.Sequential(nn.Linear(4*(num_players-1), 64), nn.ReLU(inplace=True))
+        self.attack_layer2 = nn.Sequential(nn.Linear(64, 64), nn.ReLU(inplace=True))
+
+        self.final_layer1 = nn.Sequential(nn.Linear(128, 64), nn.ReLU(inplace=True))
+        self.final_layer2 = nn.Sequential(nn.Linear(64, 1))
+
+        self._create_weights()
+
+    def _create_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                nn.init.constant_(m.bias, 0)
+
+    def forward(self, x1, x2):
+        x1 = self.layer1(x1)
+        x1 = self.layer2(x1)
+        
+        x2 = self.attack_layer1(x2)
+        x2 = self.attack_layer2(x2)
+
+        combined = torch.cat((x1, x2), dim=1)
+        x = self.final_layer1(combined)
+        x = self.final_layer2(x)
+    
+        return x
