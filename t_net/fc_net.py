@@ -94,7 +94,8 @@ class FCNetTransfer(nn.Module):
         super(FCNetTransfer, self).__init__()
         # checkpoint should be a checkpoint with at least:
             # "primary_net_state"
-        #You can get a checkpoint by doing:  torch.load('model_path.pth')  
+        #You can get a checkpoint by doing:  torch.load('model_path.pth')
+        # See how states are saved in Agent.py functions "save_state()" if confused  
 
         self.layer1 = nn.Sequential(nn.Linear(4, 64), nn.ReLU(inplace=True))
         self.layer2 = nn.Sequential(nn.Linear(64, 64), nn.ReLU(inplace=True))
@@ -105,9 +106,9 @@ class FCNetTransfer(nn.Module):
         self.final_layer1 = nn.Sequential(nn.Linear(128, 64), nn.ReLU(inplace=True))
         self.final_layer2 = nn.Sequential(nn.Linear(64, 1))
 
-        #Overwrite weights where applicable
         self._create_weights()
         
+        #Overwrite weights where applicable
         model_dict = self.state_dict()
         pretrained_dict = checkpoint['primary_net_state']
 
