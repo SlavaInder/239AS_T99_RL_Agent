@@ -88,3 +88,49 @@ class FCNetMultiplayer(nn.Module):
         x = self.final_layer2(x)
     
         return x
+
+class FCNetTransfer(nn.Module):
+    def __init__(self, num_players,checkpoint):
+        super(FCNetTransfer, self).__init__()
+        # checkpoint should be a checkpoint with at least:
+            # "primary_net_state"
+        #You can get a checkpoint by doing:  torch.load('model_path.pth')  
+
+        self.layer1 = nn.Sequential(nn.Linear(4, 64), nn.ReLU(inplace=True))
+        self.layer2 = nn.Sequential(nn.Linear(64, 64), nn.ReLU(inplace=True))
+
+        self.attack_layer1 = nn.Sequential(nn.Linear(4*(num_players-1), 64), nn.ReLU(inplace=True))
+        self.attack_layer2 = nn.Sequential(nn.Linear(64, 64), nn.ReLU(inplace=True))
+
+        self.final_layer1 = nn.Sequential(nn.Linear(128, 64), nn.ReLU(inplace=True))
+        self.final_layer2 = nn.Sequential(nn.Linear(64, 1))
+
+        #Overwrite weights where applicable
+        self._create_weights()
+        
+        model_dict = self.state_dict()
+        pretrained_dict = checkpoint['primary_net_state']
+
+        pretrained_dict = {k : v for k, v in pretrained_dict.items() if k in model_dict}
+        
+        model_dict.update(pretrained_dict)
+        self.load_state_dict(model_dict)
+   
+    def _create_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                nn.init.constant_(m.bias, 0)
+
+    def forward(self, x1, x2):
+        x1 = self.layer1(x1)
+        x1 = self.layer2(x1)
+        
+        x2 = self.attack_layer1(x2)
+        x2 = self.attack_layer2(x2)
+
+        combined = torch.cat((x1, x2), dim=1)
+        x = self.final_layer1(combined)
+        x = self.final_layer2(x)
+    
+        return x

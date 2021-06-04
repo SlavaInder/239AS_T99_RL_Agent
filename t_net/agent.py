@@ -53,7 +53,7 @@ class AgentSCAlt(object):
         self.primary_net.to(device)
         self.target_net.to(device)
 
-        # self.opponent_net.to(device) #Changed this for multiplay - Ian
+        self.opponent_net.to(device)
 
         # initialize memory
         self.cumulative_rewards = [0]
