@@ -90,7 +90,7 @@ class FCNetMultiplayer(nn.Module):
         return x
 
 class FCNetTransfer(nn.Module):
-    def __init__(self, num_players,checkpoint):
+    def __init__(self, num_players, checkpoint):
         super(FCNetTransfer, self).__init__()
         # checkpoint should be a checkpoint with at least:
             # "primary_net_state"
@@ -104,7 +104,7 @@ class FCNetTransfer(nn.Module):
         self.attack_layer2 = nn.Sequential(nn.Linear(64, 64), nn.ReLU(inplace=True))
 
         self.final_layer1 = nn.Sequential(nn.Linear(128, 64), nn.ReLU(inplace=True))
-        self.final_layer2 = nn.Sequential(nn.Linear(64, 1))
+        self.layer3 = nn.Sequential(nn.Linear(64, 1))
 
         self._create_weights()
         
@@ -132,6 +132,6 @@ class FCNetTransfer(nn.Module):
 
         combined = torch.cat((x1, x2), dim=1)
         x = self.final_layer1(combined)
-        x = self.final_layer2(x)
+        x = self.layer3(x)
     
         return x

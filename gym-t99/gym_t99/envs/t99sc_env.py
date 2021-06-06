@@ -84,6 +84,10 @@ class T99SC(gym.Env):
         self.state.players = next_states
         # distribute garbage
         self._process_event_queue()
+        # apply any garbage if necessary
+        for i in range(len(self.state.players)):
+            if self.active_players[i]:
+                self._apply_garbage(self.state.players[i])
         # check who lost during time step
         self._check_kos()
         # if the agent has lost, stop the game
@@ -175,7 +179,7 @@ class T99SC(gym.Env):
         start_state.players[player_id].piece_current.x = start_state.players[player_id].board.shape[1] // 2
         start_state.players[player_id].piece_swap.x = start_state.players[player_id].board.shape[1] // 2
         # add garbage
-        self._apply_garbage(start_state.players[player_id])
+        # self._apply_garbage(start_state.players[player_id])
         # check options for each piece
         for piece in [start_state.players[player_id].piece_current, start_state.players[player_id].piece_swap]:
             # for each possible rotation
