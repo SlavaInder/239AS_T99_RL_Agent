@@ -58,6 +58,7 @@ class AgentSC(object):
         # initialize episodes for training and testing
         self.episode_training = 0
         self.episode_testing = 0
+        self.best_reward_achieved = float("-inf")
 
     def add_to_memory(self, s_t, s_t_1, s_t_2, reward, done):
         # Adds a play to the replay memory buffer
@@ -473,6 +474,12 @@ class AgentSCFixedTarget(object):
                 print("target net updated")
                 # update weights
                 self.target_net.load_state_dict(self.primary_net.state_dict())
+            
+            #Save the network if user wants to and it has achieved the best reward thus far
+            if reward > self.best_reward_achieved:
+                self.best_reward_achieved = reward
+                if agent_save_path != None:
+                    self.save_state(agent_save_path)
 
             # if there is more than one player and it's time to update npc
             if len(self.env.state.players) > 1 and i % npc_update_freq == 0:
@@ -757,6 +764,12 @@ class AgentDoubleSC(object):
                 print("target net updated")
                 # update weights
                 self.target_net.load_state_dict(self.primary_net.state_dict())
+            
+            #Save the network if user wants to and it has achieved the best reward thus far
+            if reward > self.best_reward_achieved:
+                self.best_reward_achieved = reward
+                if agent_save_path != None:
+                    self.save_state(agent_save_path)
 
             # if there is more than one player and it's time to update npc
             if len(self.env.state.players) > 1 and i % npc_update_freq == 0:
@@ -845,6 +858,7 @@ class AgentDoubleSC(object):
         self.steps_per_episode_testing = checkpoint['steps_per_episode_testing']
         self.lines_sent_per_episode_testing = checkpoint['lines_sent_per_episode_testing']
         self.lines_cleared_per_episode_testing = checkpoint['lines_cleared_per_episode_testing']
+
 
 
 
