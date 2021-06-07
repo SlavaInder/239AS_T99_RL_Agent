@@ -886,3 +886,5 @@ class AgentDoubleSC(object):
             self.steps_per_episode_testing = checkpoint['steps_per_episode_testing']
             self.lines_sent_per_episode_testing = checkpoint['lines_sent_per_episode_testing']
             self.lines_cleared_per_episode_testing = checkpoint['lines_cleared_per_episode_testing']
+
+
