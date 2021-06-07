@@ -474,12 +474,6 @@ class AgentSCFixedTarget(object):
                 print("target net updated")
                 # update weights
                 self.target_net.load_state_dict(self.primary_net.state_dict())
-            
-            #Save the network if user wants to and it has achieved the best reward thus far
-            if reward > self.best_reward_achieved:
-                self.best_reward_achieved = reward
-                if agent_save_path != None:
-                    self.save_state(agent_save_path)
 
             # if there is more than one player and it's time to update npc
             if len(self.env.state.players) > 1 and i % npc_update_freq == 0:
@@ -764,12 +758,6 @@ class AgentDoubleSC(object):
                 print("target net updated")
                 # update weights
                 self.target_net.load_state_dict(self.primary_net.state_dict())
-            
-            #Save the network if user wants to and it has achieved the best reward thus far
-            if reward > self.best_reward_achieved:
-                self.best_reward_achieved = reward
-                if agent_save_path != None:
-                    self.save_state(agent_save_path)
 
             # if there is more than one player and it's time to update npc
             if len(self.env.state.players) > 1 and i % npc_update_freq == 0:
