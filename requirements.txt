@@ -4,3 +4,5 @@ matplotlib
 torch
 gym
 pygame
+imageio
+pygifsicle
