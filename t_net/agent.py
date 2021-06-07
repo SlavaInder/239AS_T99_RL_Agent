@@ -183,7 +183,7 @@ class AgentSC(object):
                 # send this new tensor to the device
                 q_s_t_2_sparse.type(torch.FloatTensor).to(self.device)
                 # calculate target
-                y_i = q_s_t_2_sparse + torch.tensor(self.discount) * torch_rewards
+                y_i = q_s_t_2_sparse + torch.tensor(self.discount).type(torch.FloatTensor).to(self.device)*torch_rewards
                 # get the expected score for the s(t+1) using primary net
                 q_current = self.primary_net(torch_s_t_1)[:, 0]
 
@@ -458,7 +458,7 @@ class AgentSCFixedTarget(object):
                 # send this new tensor to the device
                 q_s_t_2_sparse.type(torch.FloatTensor).to(self.device)
                 # calculate target
-                y_i = q_s_t_2_sparse + torch.tensor(self.discount) * torch_rewards
+                y_i = q_s_t_2_sparse + torch.tensor(self.discount).type(torch.FloatTensor).to(self.device)*torch_rewards
                 # get the expected score for the s(t+1) using primary net
                 q_current = self.primary_net(torch_s_t_1)[:, 0]
 
@@ -742,7 +742,7 @@ class AgentDoubleSC(object):
                 # send this new tensor to the device
                 q_s_t_2_sparse.type(torch.FloatTensor).to(self.device)
                 # calculate target
-                y_i = q_s_t_2_sparse + torch.tensor(self.discount) * torch_rewards
+                y_i = q_s_t_2_sparse + torch.tensor(self.discount).type(torch.FloatTensor).to(self.device)*torch_rewards
                 # get the expected score for the s(t+1) using primary net
                 q_current = self.primary_net(torch_s_t_1)[:, 0]
 
