@@ -58,8 +58,8 @@ class T99SC(gym.Env):
     def step(self, action, skip_observation = False):
         """
         the function which makes one update of the environment.
-
         :param dict action: a dictionary with reward, state, and finishing status.
+        ;param bool skip_observation: whether or not we need to output observations for the next step
         :return object observation: a tuple with a list of all possible next states and list of corresponding rewards
         :return float reward: amount of reward achieved by the previous action
         :return boolean done: whether it’s time to reset the environment again, True if the agent loses or wins
