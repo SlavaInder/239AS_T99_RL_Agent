@@ -4,6 +4,7 @@ from .fc_net import FCNet
 import numpy as np
 import torch
 import random
+from os import path
 
 
 class AgentSC(object):
@@ -50,6 +51,7 @@ class AgentSC(object):
         self.steps_per_episode_training = [0]
         self.lines_sent_per_episode_training = [0]
         self.lines_cleared_per_episode_training = [0]
+        self.best_reward_achieved = float("-inf")
         # initialize memory for evaluation
         self.cumulative_rewards_testing = [0]
         self.steps_per_episode_testing = [0]
@@ -112,7 +114,7 @@ class AgentSC(object):
 
         return options[index]
 
-    def train(self, batch_size=128, update_freq=2000, steps=10000, npc_update_freq=5000):
+    def train(self, batch_size=128, update_freq=2000, steps=10000, npc_update_freq=5000, agent_save_path=None, image_save_path=None, episode_to_save=0):
         '''
         Trains the agent by following DQN with fixed target
         '''
@@ -183,7 +185,7 @@ class AgentSC(object):
                 # send this new tensor to the device
                 q_s_t_2_sparse.type(torch.FloatTensor).to(self.device)
                 # calculate target
-                y_i = q_s_t_2_sparse + torch.tensor(self.discount) * torch_rewards
+                y_i = q_s_t_2_sparse + torch.tensor(self.discount).type(torch.FloatTensor).to(self.device)*torch_rewards
                 # get the expected score for the s(t+1) using primary net
                 q_current = self.primary_net(torch_s_t_1)[:, 0]
 
@@ -199,6 +201,17 @@ class AgentSC(object):
                 print("npc net updated")
                 # update weights
                 self.env.enemy.update(self.primary_net.state_dict())
+            
+            #Save the network if user wants to and it has achieved the best reward thus far
+            if reward > self.best_reward_achieved:
+                self.best_reward_achieved = reward
+                if agent_save_path != None:
+                    self.save_state(agent_save_path)
+            
+            #Save the image if the user wants
+            if image_save_path != None and (episode_to_save == self.episode or (episode_to_save == self.episode + 1 and done)):
+                full_path = path.join(image_save_path, "step{}.png".format(i))
+                self.env.render(mode="human",image_path=full_path)
 
     def test(self, steps=10000):
         """
@@ -259,25 +272,26 @@ class AgentSC(object):
             'lines_cleared_per_episode_testing': self.lines_cleared_per_episode_testing,
         }, path)
 
-    def load_state(self,path):
+    def load_state(self,path,net_only=False):
         # Don't forget to do .eval() or .train() now!
         checkpoint = torch.load(path)
         self.primary_net.load_state_dict(checkpoint['primary_net_state'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        self.discount = checkpoint['discount']
-        self.replay_start_size = checkpoint['replay_start_size']
-        self.exploration_rate = checkpoint['exploration_rate']
-        self.memory = deque(maxlen=checkpoint['mem_size'])
-        self.episode_training = checkpoint['episode_training']
-        self.cumulative_rewards_training = checkpoint['cumulative_rewards_training']
-        self.steps_per_episode_training = checkpoint['steps_per_episode_training']
-        self.lines_sent_per_episode_training = checkpoint['lines_sent_per_episode_training']
-        self.lines_cleared_per_episode_training = checkpoint['lines_cleared_per_episode_training']
-        self.episode_testing = checkpoint['episode_testing']
-        self.cumulative_rewards_testing = checkpoint['cumulative_rewards_testing']
-        self.steps_per_episode_testing = checkpoint['steps_per_episode_testing']
-        self.lines_sent_per_episode_testing = checkpoint['lines_sent_per_episode_testing']
-        self.lines_cleared_per_episode_testing = checkpoint['lines_cleared_per_episode_testing']
+        if not net_only:
+            self.discount = checkpoint['discount']
+            self.replay_start_size = checkpoint['replay_start_size']
+            self.exploration_rate = checkpoint['exploration_rate']
+            self.memory = deque(maxlen=checkpoint['mem_size'])
+            self.episode_training = checkpoint['episode_training']
+            self.cumulative_rewards_training = checkpoint['cumulative_rewards_training']
+            self.steps_per_episode_training = checkpoint['steps_per_episode_training']
+            self.lines_sent_per_episode_training = checkpoint['lines_sent_per_episode_training']
+            self.lines_cleared_per_episode_training = checkpoint['lines_cleared_per_episode_training']
+            self.episode_testing = checkpoint['episode_testing']
+            self.cumulative_rewards_testing = checkpoint['cumulative_rewards_testing']
+            self.steps_per_episode_testing = checkpoint['steps_per_episode_testing']
+            self.lines_sent_per_episode_testing = checkpoint['lines_sent_per_episode_testing']
+            self.lines_cleared_per_episode_testing = checkpoint['lines_cleared_per_episode_testing']
 
 
 class AgentSCFixedTarget(object):
@@ -326,6 +340,7 @@ class AgentSCFixedTarget(object):
         self.steps_per_episode_training = [0]
         self.lines_sent_per_episode_training = [0]
         self.lines_cleared_per_episode_training = [0]
+        self.best_reward_achieved = float("-inf")
         # initialize memory for evaluation
         self.cumulative_rewards_testing = [0]
         self.steps_per_episode_testing = [0]
@@ -387,7 +402,7 @@ class AgentSCFixedTarget(object):
 
         return options[index]
 
-    def train(self, batch_size=128, update_freq=2000, steps=10000, npc_update_freq=5000):
+    def train(self, batch_size=128, update_freq=2000, steps=10000, npc_update_freq=5000, agent_save_path=None, image_save_path=None, episode_to_save=0):
         '''
         Trains the agent by following DQN with fixed target
         '''
@@ -458,7 +473,7 @@ class AgentSCFixedTarget(object):
                 # send this new tensor to the device
                 q_s_t_2_sparse.type(torch.FloatTensor).to(self.device)
                 # calculate target
-                y_i = q_s_t_2_sparse + torch.tensor(self.discount) * torch_rewards
+                y_i = q_s_t_2_sparse + torch.tensor(self.discount).type(torch.FloatTensor).to(self.device)*torch_rewards
                 # get the expected score for the s(t+1) using primary net
                 q_current = self.primary_net(torch_s_t_1)[:, 0]
 
@@ -481,6 +496,17 @@ class AgentSCFixedTarget(object):
                 print("npc net updated")
                 # update weights
                 self.env.enemy.update(self.primary_net.state_dict())
+            
+            #Save the network if user wants to and it has achieved the best reward thus far
+            if reward > self.best_reward_achieved:
+                self.best_reward_achieved = reward
+                if agent_save_path != None:
+                    self.save_state(agent_save_path)
+            
+            #Save the image if the user wants
+            if image_save_path != None and (episode_to_save == self.episode or (episode_to_save == self.episode + 1 and done)):
+                full_path = path.join(image_save_path, "step{}.png".format(i))
+                self.env.render(mode="human",image_path=full_path)
 
     def test(self, steps=10000):
         """
@@ -542,26 +568,27 @@ class AgentSCFixedTarget(object):
             'lines_cleared_per_episode_testing': self.lines_cleared_per_episode_testing,
         }, path)
 
-    def load_state(self,path):
+    def load_state(self,path,net_only=False):
         # Don't forget to do .eval() or .train() now!
         checkpoint = torch.load(path)
         self.primary_net.load_state_dict(checkpoint['primary_net_state'])
         self.target_net.load_state_dict(checkpoint['target_net_state'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        self.discount = checkpoint['discount']
-        self.replay_start_size = checkpoint['replay_start_size']
-        self.exploration_rate = checkpoint['exploration_rate']
-        self.memory = deque(maxlen=checkpoint['mem_size'])
-        self.episode_training = checkpoint['episode_training']
-        self.cumulative_rewards_training = checkpoint['cumulative_rewards_training']
-        self.steps_per_episode_training = checkpoint['steps_per_episode_training']
-        self.lines_sent_per_episode_training = checkpoint['lines_sent_per_episode_training']
-        self.lines_cleared_per_episode_training = checkpoint['lines_cleared_per_episode_training']
-        self.episode_testing = checkpoint['episode_testing']
-        self.cumulative_rewards_testing = checkpoint['cumulative_rewards_testing']
-        self.steps_per_episode_testing = checkpoint['steps_per_episode_testing']
-        self.lines_sent_per_episode_testing = checkpoint['lines_sent_per_episode_testing']
-        self.lines_cleared_per_episode_testing = checkpoint['lines_cleared_per_episode_testing']
+        if not net_only:
+            self.discount = checkpoint['discount']
+            self.replay_start_size = checkpoint['replay_start_size']
+            self.exploration_rate = checkpoint['exploration_rate']
+            self.memory = deque(maxlen=checkpoint['mem_size'])
+            self.episode_training = checkpoint['episode_training']
+            self.cumulative_rewards_training = checkpoint['cumulative_rewards_training']
+            self.steps_per_episode_training = checkpoint['steps_per_episode_training']
+            self.lines_sent_per_episode_training = checkpoint['lines_sent_per_episode_training']
+            self.lines_cleared_per_episode_training = checkpoint['lines_cleared_per_episode_training']
+            self.episode_testing = checkpoint['episode_testing']
+            self.cumulative_rewards_testing = checkpoint['cumulative_rewards_testing']
+            self.steps_per_episode_testing = checkpoint['steps_per_episode_testing']
+            self.lines_sent_per_episode_testing = checkpoint['lines_sent_per_episode_testing']
+            self.lines_cleared_per_episode_testing = checkpoint['lines_cleared_per_episode_testing']
 
 
 class AgentDoubleSC(object):
@@ -610,6 +637,7 @@ class AgentDoubleSC(object):
         self.steps_per_episode_training = [0]
         self.lines_sent_per_episode_training = [0]
         self.lines_cleared_per_episode_training = [0]
+        self.best_reward_achieved = float("-inf")
         # initialize memory for evaluation
         self.cumulative_rewards_testing = [0]
         self.steps_per_episode_testing = [0]
@@ -671,7 +699,7 @@ class AgentDoubleSC(object):
 
         return options[index]
 
-    def train(self, batch_size=128, update_freq=2000, steps=10000, npc_update_freq=5000):
+    def train(self, batch_size=128, update_freq=2000, steps=10000, npc_update_freq=5000, agent_save_path=None, image_save_path=None, episode_to_save=0):
         '''
         Trains the agent by following Double DQN-learning algorithm
         '''
@@ -742,7 +770,7 @@ class AgentDoubleSC(object):
                 # send this new tensor to the device
                 q_s_t_2_sparse.type(torch.FloatTensor).to(self.device)
                 # calculate target
-                y_i = q_s_t_2_sparse + torch.tensor(self.discount) * torch_rewards
+                y_i = q_s_t_2_sparse + torch.tensor(self.discount).type(torch.FloatTensor).to(self.device)*torch_rewards
                 # get the expected score for the s(t+1) using primary net
                 q_current = self.primary_net(torch_s_t_1)[:, 0]
 
@@ -765,6 +793,17 @@ class AgentDoubleSC(object):
                 print("npc net updated")
                 # update weights
                 self.env.enemy.update(self.primary_net.state_dict())
+            
+            #Save the network if user wants to and it has achieved the best reward thus far
+            if reward > self.best_reward_achieved:
+                self.best_reward_achieved = reward
+                if agent_save_path != None:
+                    self.save_state(agent_save_path)
+            
+            #Save the image if the user wants
+            if image_save_path != None and (episode_to_save == self.episode or (episode_to_save == self.episode + 1 and done)):
+                full_path = path.join(image_save_path, "step{}.png".format(i))
+                self.env.render(mode="human",image_path=full_path)
 
     def test(self, steps=10000):
         """
@@ -826,27 +865,24 @@ class AgentDoubleSC(object):
             'lines_cleared_per_episode_testing': self.lines_cleared_per_episode_testing,
             }, path)
 
-    def load_state(self,path):
+    def load_state(self,path,net_only=False):
         # Don't forget to do .eval() or .train() now!
         checkpoint = torch.load(path)
         self.primary_net.load_state_dict(checkpoint['primary_net_state'])
         self.target_net.load_state_dict(checkpoint['target_net_state'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        self.discount = checkpoint['discount']
-        self.replay_start_size = checkpoint['replay_start_size']
-        self.exploration_rate = checkpoint['exploration_rate']
-        self.memory = deque(maxlen=checkpoint['mem_size'])
-        self.episode_training = checkpoint['episode_training']
-        self.cumulative_rewards_training = checkpoint['cumulative_rewards_training']
-        self.steps_per_episode_training = checkpoint['steps_per_episode_training']
-        self.lines_sent_per_episode_training = checkpoint['lines_sent_per_episode_training']
-        self.lines_cleared_per_episode_training = checkpoint['lines_cleared_per_episode_training']
-        self.episode_testing = checkpoint['episode_testing']
-        self.cumulative_rewards_testing = checkpoint['cumulative_rewards_testing']
-        self.steps_per_episode_testing = checkpoint['steps_per_episode_testing']
-        self.lines_sent_per_episode_testing = checkpoint['lines_sent_per_episode_testing']
-        self.lines_cleared_per_episode_testing = checkpoint['lines_cleared_per_episode_testing']
-
-
-
-
+        if not net_only:
+            self.discount = checkpoint['discount']
+            self.replay_start_size = checkpoint['replay_start_size']
+            self.exploration_rate = checkpoint['exploration_rate']
+            self.memory = deque(maxlen=checkpoint['mem_size'])
+            self.episode_training = checkpoint['episode_training']
+            self.cumulative_rewards_training = checkpoint['cumulative_rewards_training']
+            self.steps_per_episode_training = checkpoint['steps_per_episode_training']
+            self.lines_sent_per_episode_training = checkpoint['lines_sent_per_episode_training']
+            self.lines_cleared_per_episode_training = checkpoint['lines_cleared_per_episode_training']
+            self.episode_testing = checkpoint['episode_testing']
+            self.cumulative_rewards_testing = checkpoint['cumulative_rewards_testing']
+            self.steps_per_episode_testing = checkpoint['steps_per_episode_testing']
+            self.lines_sent_per_episode_testing = checkpoint['lines_sent_per_episode_testing']
+            self.lines_cleared_per_episode_testing = checkpoint['lines_cleared_per_episode_testing']
