@@ -62,7 +62,7 @@ class AgentSC(object):
         Makes a single-step update in accordance with epsilon-greedy strategy
         '''
         # observe the options we have for reward and next states of the player controlled by the agent
-        options, rewards = self.env._observe(0)
+        options, rewards, stats = self.env._observe(0)
         # check if we are exploring on this step
         if np.random.random_sample() <= self.exploration_rate:
             # if so, choose an action on random
@@ -84,7 +84,7 @@ class AgentSC(object):
             "reward": rewards[index],
             "state": options[index]
         }
-        _, reward, done, _ = self.env.step(action)
+        _, reward, done, _ = self.env.step(action, skip_observation=True)
 
         return reward, done
 
@@ -234,7 +234,7 @@ class AgentSCAlt(object):
         Makes a single-step update in accordance with epsilon-greedy strategy
         '''
         # observe the options we have for reward and next states of the player controlled by the agent
-        options, rewards = self.env._observe(0)
+        options, rewards, stats = self.env._observe(0)
         # check if we are exploring on this step
         if np.random.random_sample() <= self.exploration_rate:
             # if so, choose an action on random
@@ -256,14 +256,14 @@ class AgentSCAlt(object):
             "reward": rewards[index],
             "state": options[index]
         }
-        _, reward, done, _ = self.env.step(action)
+        _, reward, done, _ = self.env.step(action, skip_observation=True)
 
         return reward, done
 
     def optimal_action(self):
         # finds optimal action using target net
         # observe the options we have for reward and next states of the player controlled by the agent
-        options, rewards = self.env._observe(0)
+        options, rewards, stats = self.env._observe(0)
         # get features for all next states
         feats = []
         for i in range(len(rewards)):
@@ -444,7 +444,7 @@ class AgentDoubleSC(object):
         Makes a single-step update in accordance with epsilon-greedy strategy
         '''
         # observe the options we have for reward and next states of the player controlled by the agent
-        options, rewards = self.env._observe(0)
+        options, rewards, stats = self.env._observe(0)
         # check if we are exploring on this step
         if np.random.random_sample() <= self.exploration_rate:
             # if so, choose an action on random
@@ -466,14 +466,14 @@ class AgentDoubleSC(object):
             "reward": rewards[index],
             "state": options[index]
         }
-        _, reward, done, _ = self.env.step(action)
+        _, reward, done, _ = self.env.step(action, skip_observation=True)
 
         return reward, done
 
     def optimal_action(self):
         # finds optimal action using target net
         # observe the options we have for reward and next states of the player controlled by the agent
-        options, rewards = self.env._observe(0)
+        options, rewards, stats = self.env._observe(0)
         # get features for all next states
         feats = []
         for i in range(len(rewards)):
