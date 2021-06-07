@@ -72,7 +72,7 @@ class T99SC(gym.Env):
 
         # process current step
         # init array for states the agent and npc-s will end up after the step finishes
-        next_states = [None for _ in range(len(self.state.players))]
+        next_states = deepcopy(self.state.players)
         # register the agent's step and event queue it created
         next_states[0] = action["state"].players[0]
         self.state.event_queue.extend(action["state"].event_queue)
@@ -276,6 +276,8 @@ class T99SC(gym.Env):
             # send num_lines lines to the target
             for i in range(int(event["num_lines"])):
                 self.state.players[event["target"]].incoming_garbage.append(T99SC.settings["attack_delay"])
+        # reset even queue
+        self.state.event_queue = []
 
     def _check_kos(self):
         # function that updates the list of active players
@@ -454,6 +456,7 @@ class T99SC(gym.Env):
         # choose x that will miss from the garbage
         missing_x = np.random.choice(np.arange(10))
         # update player's board
+        print(player.board.shape)
         # first move all existing lines to the top by "total_lines" lines
         player.board[0:25 - total_lines, 3:b_width - 3] = player.board[total_lines:25, 3:b_width - 3]
         # then clear free space
