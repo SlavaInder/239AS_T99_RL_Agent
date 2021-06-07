@@ -426,4 +426,4 @@ class AgentSCAlt(object):
         self.memory = deque(maxlen=checkpoint['mem_size'])
         self.cumulative_rewards = checkpoint['cumulative_rewards']
         self.steps_per_episode = checkpoint['steps_per_episode']
-        self.episode = checkpoint['episode']
+        #self.episode = checkpoint['episode']
