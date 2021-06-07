@@ -4,6 +4,7 @@ from .fc_net import FCNet
 import numpy as np
 import torch
 import random
+from os import path
 
 
 class AgentSCAlt(object):
@@ -35,11 +36,8 @@ class AgentSCAlt(object):
         # set up nets
         self.primary_net = deepcopy(net)
         self.target_net = deepcopy(net)
-        
-        
         self.opponent_net = deepcopy(net) 
-        
-        
+         
         self.optimizer = torch.optim.Adam(self.primary_net.parameters(), lr=learning_rate)
         self.criterion = criterion
         # choose a function to extract features
@@ -58,6 +56,7 @@ class AgentSCAlt(object):
         # initialize memory
         self.cumulative_rewards = [0]
         self.steps_per_episode = [0]
+        self.best_reward_achieved = float("-inf")
         # initialize episode
         self.episode = 0
 
@@ -200,9 +199,9 @@ class AgentSCAlt(object):
 
             return options[index]
 
-    def train(self, batch_size=128, update_freq=2000, steps=10000, opponent_update_freq=4000, is_multiplayer=False):
+    def train(self, batch_size=128, update_freq=2000, steps=10000, opponent_update_freq=4000, is_multiplayer=False, agent_save_path = None, image_save_path=None,episode_to_save=10):
         '''
-        Trains the agent by following Double DQN-learning algorithm
+        Trains the agent by following the fixed target DQN-learning algorithm
         '''
         # Check if we are training in multiplayer scenario
         if is_multiplayer:
@@ -302,6 +301,16 @@ class AgentSCAlt(object):
                     # update weights
                     self.opponent_net.load_state_dict(self.primary_net.state_dict())
                 
+                #Save the image if the user wants
+                if image_save_path != None and (episode_to_save == self.episode or (episode_to_save == self.episode + 1 and done)):
+                    full_path = path.join(image_save_path, "step{}.png".format(i))
+                    self.env.render(mode="human",image_path=full_path)
+                
+                #Save the network if user wants to and it has achieved the best reward thus far
+                if reward > self.best_reward_achieved:
+                    self.best_reward_achieved = reward
+                    if agent_save_path != None:
+                        self.save_state(agent_save_path)
 
         else:
             # For single player
@@ -383,6 +392,12 @@ class AgentSCAlt(object):
                     print("target net updated")
                     # update weights
                     self.target_net.load_state_dict(self.primary_net.state_dict())
+                
+                #Save the network if user wants to and it has achieved the best reward thus far
+                if reward > self.best_reward_achieved:
+                    self.best_reward_achieved = reward
+                    if agent_save_path != None:
+                        self.save_state(agent_save_path)
 
 
     def save_state(self,path):
@@ -395,7 +410,8 @@ class AgentSCAlt(object):
             'exploration_rate' : self.exploration_rate,
             'mem_size' : self.memory.maxlen,
             'cumulative_rewards' : self.cumulative_rewards,
-            'steps_per_episode' : self.steps_per_episode
+            'steps_per_episode' : self.steps_per_episode,
+            'episode' : self.episode 
             }, path)
 
     def load_state(self,path):
@@ -410,3 +426,4 @@ class AgentSCAlt(object):
         self.memory = deque(maxlen=checkpoint['mem_size'])
         self.cumulative_rewards = checkpoint['cumulative_rewards']
         self.steps_per_episode = checkpoint['steps_per_episode']
+        #self.episode = checkpoint['episode']
