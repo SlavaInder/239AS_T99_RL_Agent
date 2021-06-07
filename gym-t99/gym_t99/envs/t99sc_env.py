@@ -302,8 +302,6 @@ class T99SC(gym.Env):
         if not np.sum(player.board[6:25, 3:b_width - 3]) > 0:
             # if so, increase the number of lines to send
             lines = 10
-            print(player.board)
-            print("10 lines sent!")
         # if not, calculate the number of lines based on table
         # if 1 line is cleared, nothing is sent;
         # if 2 lines are cleared, 1 is sent;
