@@ -168,7 +168,8 @@ class AgentSC(object):
             'exploration_rate' : self.exploration_rate,
             'mem_size' : self.memory.maxlen,
             'cumulative_rewards' : self.cumulative_rewards,
-            'steps_per_episode' : self.steps_per_episode
+            'steps_per_episode' : self.steps_per_episode,
+            'episode' : self.episode
             }, path)
 
     def load_state(self,path):
@@ -183,6 +184,7 @@ class AgentSC(object):
         self.memory = deque(maxlen=checkpoint['mem_size'])
         self.cumulative_rewards = checkpoint['cumulative_rewards']
         self.steps_per_episode = checkpoint['steps_per_episode']
+        self.episode = checkpoint['episode']
 
 
 class AgentSCAlt(object):
@@ -374,6 +376,7 @@ class AgentSCAlt(object):
                 self.best_reward_achieved = reward
                 if agent_save_path != None:
                     self.save_state(agent_save_path)
+
     def save_state(self,path):
         torch.save({
             'primary_net_state': self.primary_net.state_dict(),
@@ -385,7 +388,7 @@ class AgentSCAlt(object):
             'mem_size' : self.memory.maxlen,
             'cumulative_rewards' : self.cumulative_rewards,
             'steps_per_episode' : self.steps_per_episode,
-            'episode' : self.episode 
+            'episode' : self.episode,
             }, path)
 
     def load_state(self,path):
