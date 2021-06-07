@@ -119,7 +119,7 @@ class AgentSC(object):
         # repeats the algorithm steps times
         for i in range(steps):
             # record the step
-            if i % 1000 == 0: print("calculating step", i)
+            if i % 500 == 0: print("calculating step", i)
             # get features for the s(t)
             s_t_features = self.get_features(self.env.state)
             # make an action, record the reward and check whether environment is done
@@ -394,7 +394,7 @@ class AgentSCFixedTarget(object):
         # repeats the algorithm steps times
         for i in range(steps):
             # record the step
-            if i % 2 == 0: print("calculating step", i)
+            if i % 500 == 0: print("calculating step", i)
             # get features for the s(t)
             s_t_features = self.get_features(self.env.state)
             # make an action, record the reward and check whether environment is done
@@ -678,7 +678,7 @@ class AgentDoubleSC(object):
         # repeats the algorithm steps times
         for i in range(steps):
             # record the step
-            if i % 1000 == 0: print("calculating step", i)
+            if i % 500 == 0: print("calculating step", i)
             # get features for the s(t)
             s_t_features = self.get_features(self.env.state)
             # make an action, record the reward and check whether environment is done
