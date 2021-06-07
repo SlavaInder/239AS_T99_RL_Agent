@@ -28,7 +28,7 @@ class T99SC(gym.Env):
         "r_survive": 0.001,         # the reward for surviving
         "r_clear_line": 0.01,       # the reward for clearing one line
         "r_send_line": 0.02,        # the reward for sending one line of garbage
-        "r_win": 100                # the reward for winning
+        "r_win": 10                 # the reward for winning
     }
 
     def __init__(self, enemy, num_players=2):
@@ -105,11 +105,11 @@ class T99SC(gym.Env):
         # if the game is in multiplayer mode
         else:
             # if the active player has lost, or it is the last player remaining, stop the game
-            if (not self.active_players[0]) or np.all(self.active_players[1:] is False):
+            if (not self.active_players[0]) or np.all(self.active_players[1:].astype(int) == 0):
                 done = True
                 # if this is the Agent who survived until the end, add the reward of winning
-                if np.all(self.active_players[1:] is False):
-                    reward += settings["r_win"]
+                if np.all(self.active_players[1:].astype(int) == 0):
+                    reward += T99SC.settings["r_win"]
             else:
                 done = False
 
@@ -299,9 +299,11 @@ class T99SC(gym.Env):
         # converts the number of cleared lines to the number of garbage lines based on player's condition
         b_height, b_width = self.state.players[0].board.shape
         # check if the whole board is cleared
-        if not np.sum(player.board.astype(bool)[5:24, 3:b_width - 3]) > 0:
+        if not np.sum(player.board[6:25, 3:b_width - 3]) > 0:
             # if so, increase the number of lines to send
             lines = 10
+            print(player.board)
+            print("10 lines sent!")
         # if not, calculate the number of lines based on table
         # if 1 line is cleared, nothing is sent;
         # if 2 lines are cleared, 1 is sent;
@@ -456,7 +458,8 @@ class T99SC(gym.Env):
         # choose x that will miss from the garbage
         missing_x = np.random.choice(np.arange(10))
         # update player's board
-        print(player.board.shape)
+        # ensure that no more than 20 lines is sent
+        if total_lines > 20: total_lines = 20
         # first move all existing lines to the top by "total_lines" lines
         player.board[0:25 - total_lines, 3:b_width - 3] = player.board[total_lines:25, 3:b_width - 3]
         # then clear free space
