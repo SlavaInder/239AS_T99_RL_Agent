@@ -28,7 +28,7 @@ class T99SC(gym.Env):
         "r_survive": 0.001,          # the reward for surviving
         "r_clear_line": 0.05,       # the reward for clearing one line
         "r_send_line": 0.02,        # the reward for sending one line of garbage
-        "r_win": 1000               # the reward for winning
+        "r_win": 10                # the reward for winning
     }
 
     def __init__(self, enemy, num_players=2):
@@ -91,16 +91,19 @@ class T99SC(gym.Env):
         # check who lost during time step
         self._check_kos()
         # if the agent has lost, stop the game
-        if not self.active_players[0]:
+        if not self.active_players[0] or not self.active_players[1]:
             done = True
         else:
             done = False
+
+        if done and self.active_players[0]:
+            reward += self.settings["r_win"]
 
         # if game continues
         if not done:
             # calculate possible next states
             # observation = self._observe(0)
-            observation = ([], []) 
+            observation = ([], [])
         else:
             # or return empty tuple
             observation = ([], [])
@@ -261,7 +264,7 @@ class T99SC(gym.Env):
         # converts the number of cleared lines to the number of garbage lines based on player's condition
         b_height, b_width = self.state.players[0].board.shape
         # check if the whole board is cleared
-        if not np.sum(player.board.astype(bool)[5:24, 3:b_width - 3]) > 0:
+        if not np.sum(player.board[6:25, 3:b_width - 3]) > 0:
             # if so, increase the number of lines to send
             lines = 10
         # if not, calculate the number of lines based on table
