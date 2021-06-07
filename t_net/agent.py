@@ -50,6 +50,7 @@ class AgentSC(object):
         # initialize memory
         self.cumulative_rewards = [0]
         self.steps_per_episode = [0]
+        self.best_reward_achieved = float("-inf")
         # initialize episode
         self.episode = 0
 
@@ -88,7 +89,7 @@ class AgentSC(object):
 
         return reward, done
 
-    def train(self, batch_size=128, update_freq=2000, steps=10000):
+    def train(self, batch_size=128, update_freq=2000, steps=10000, agent_save_path = None):
         '''
         Trains the agent by following DQN-learning algorithm with experience replay and fixed target
         '''
@@ -150,6 +151,12 @@ class AgentSC(object):
                 print("policy net updated")
                 # update weights
                 self.policy_net.load_state_dict(self.target_net.state_dict())
+            
+            #Save the network if user wants to and it has achieved the best reward thus far
+            if reward > self.best_reward_achieved:
+                self.best_reward_achieved = reward
+                if agent_save_path != None:
+                    self.save_state(agent_save_path)
 
     def save_state(self,path):     
         torch.save({
@@ -161,7 +168,8 @@ class AgentSC(object):
             'exploration_rate' : self.exploration_rate,
             'mem_size' : self.memory.maxlen,
             'cumulative_rewards' : self.cumulative_rewards,
-            'steps_per_episode' : self.steps_per_episode
+            'steps_per_episode' : self.steps_per_episode,
+            'episode' : self.episode
             }, path)
 
     def load_state(self,path):
@@ -176,6 +184,8 @@ class AgentSC(object):
         self.memory = deque(maxlen=checkpoint['mem_size'])
         self.cumulative_rewards = checkpoint['cumulative_rewards']
         self.steps_per_episode = checkpoint['steps_per_episode']
+        self.episode = checkpoint['episode']
+
 
 
 class AgentSCAlt(object):
@@ -222,6 +232,7 @@ class AgentSCAlt(object):
         # initialize memory
         self.cumulative_rewards = [0]
         self.steps_per_episode = [0]
+        self.best_reward_achieved = float("-inf")
         # initialize episode
         self.episode = 0
 
@@ -277,7 +288,7 @@ class AgentSCAlt(object):
 
         return options[index]
 
-    def train(self, batch_size=128, update_freq=2000, steps=10000):
+    def train(self, batch_size=128, update_freq=2000, steps=10000, agent_save_path = None):
         '''
         Trains the agent by following Double DQN-learning algorithm
         '''
@@ -360,6 +371,12 @@ class AgentSCAlt(object):
                 print("target net updated")
                 # update weights
                 self.target_net.load_state_dict(self.primary_net.state_dict())
+            
+            #Save the network if user wants to and it has achieved the best reward thus far
+            if reward > self.best_reward_achieved:
+                self.best_reward_achieved = reward
+                if agent_save_path != None:
+                    self.save_state(agent_save_path)
 
     def save_state(self,path):
         torch.save({
@@ -371,7 +388,8 @@ class AgentSCAlt(object):
             'exploration_rate' : self.exploration_rate,
             'mem_size' : self.memory.maxlen,
             'cumulative_rewards' : self.cumulative_rewards,
-            'steps_per_episode' : self.steps_per_episode
+            'steps_per_episode' : self.steps_per_episode,
+            'episode' : self.episode,
             }, path)
 
     def load_state(self,path):
@@ -386,6 +404,7 @@ class AgentSCAlt(object):
         self.memory = deque(maxlen=checkpoint['mem_size'])
         self.cumulative_rewards = checkpoint['cumulative_rewards']
         self.steps_per_episode = checkpoint['steps_per_episode']
+        self.episode = checkpoint['episode']
 
 
 class AgentDoubleSC(object):
@@ -432,6 +451,7 @@ class AgentDoubleSC(object):
         # initialize memory
         self.cumulative_rewards = [0]
         self.steps_per_episode = [0]
+        self.best_reward_achieved = float("-inf")
         # initialize episode
         self.episode = 0
 
@@ -487,7 +507,7 @@ class AgentDoubleSC(object):
 
         return options[index]
 
-    def train(self, batch_size=128, update_freq=2000, steps=10000):
+    def train(self, batch_size=128, update_freq=2000, steps=10000, agent_save_path = None):
         '''
         Trains the agent by following Double DQN-learning algorithm
         '''
@@ -570,6 +590,12 @@ class AgentDoubleSC(object):
                 print("target net updated")
                 # update weights
                 self.target_net.load_state_dict(self.primary_net.state_dict())
+            
+            #Save the network if user wants to and it has achieved the best reward thus far
+            if reward > self.best_reward_achieved:
+                self.best_reward_achieved = reward
+                if agent_save_path != None:
+                    self.save_state(agent_save_path)
 
     def save_state(self,path):
         torch.save({
@@ -581,7 +607,8 @@ class AgentDoubleSC(object):
             'exploration_rate' : self.exploration_rate,
             'mem_size' : self.memory.maxlen,
             'cumulative_rewards' : self.cumulative_rewards,
-            'steps_per_episode' : self.steps_per_episode
+            'steps_per_episode' : self.steps_per_episode,
+            'episode' : self.episode 
             }, path)
 
     def load_state(self,path):
@@ -596,6 +623,7 @@ class AgentDoubleSC(object):
         self.memory = deque(maxlen=checkpoint['mem_size'])
         self.cumulative_rewards = checkpoint['cumulative_rewards']
         self.steps_per_episode = checkpoint['steps_per_episode']
+        self.episode = checkpoint['episode']
 
 
 
