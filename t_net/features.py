@@ -76,6 +76,22 @@ def calculate_linear_features(state):
     return np.array([lines, holes, total_bumpiness, sum_height])
 
 
+def calculate_linear_features_npc(state):
+    player = state.players[1]
+    # Creates a vector of features to represent a player's board.
+    num_rows = player.board.shape[0]
+    num_cols = player.board.shape[1]
+    # Extract the board
+    board = player.board[5:num_rows-3, 3:num_cols-3]
+    # calculate lines cleared, holes, bumpiness, and heights
+    lines = player.num_lines_cleared
+    holes = number_of_holes(board)
+    total_bumpiness, max_bumpiness = bumpiness(board)
+    sum_height, max_height, min_height = height(board)
+
+    return np.array([lines, holes, total_bumpiness, sum_height])
+
+
 def fetch_board(state):
     # Creates a vector of features to represent a player's board.
     num_rows = state.players[0].board.shape[0]
@@ -114,10 +130,9 @@ def calculate_mixed_fc_features(state):
     board = np.append(board, lines)
     return board
 
-#I copied this in from multiplayer, figure it would be necessary soon: -Ian
 
 def calculate_linear_features_multiplayer(state, player_id):
-    
+    # I copied this in from multiplayer, figure it would be necessary soon: -Ian
     def calculate_linear_features_for_player(state, player_id):
 
         player = state.players[player_id]

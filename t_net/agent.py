@@ -203,14 +203,14 @@ class AgentSC(object):
                 # update weights
                 self.env.enemy.update(self.primary_net.state_dict())
             
-            #Save the network if user wants to and it has achieved the best reward thus far
+            # Save the network if user wants to and it has achieved the best reward thus far
             if reward > self.best_reward_achieved:
                 self.best_reward_achieved = reward
-                if agent_save_path != None:
+                if agent_save_path is not None:
                     self.save_state(agent_save_path)
             
-            #Save the image if the user wants
-            if image_save_path != None and \
+            # Save the image if the user wants
+            if image_save_path is not None and \
                     (episode_to_save == self.episode or (episode_to_save == self.episode + 1 and done)):
                 full_path = path.join(image_save_path, "step{}.png".format(i))
                 self.env.render(mode="human",image_path=full_path)
