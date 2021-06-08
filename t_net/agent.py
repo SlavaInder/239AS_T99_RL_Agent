@@ -253,7 +253,12 @@ class AgentSC(object):
                     self.steps_per_episode_testing.append(0)
                     self.lines_sent_per_episode_testing.append(0)
                     self.lines_cleared_per_episode_testing.append(0)
-
+        
+        #Remove padded 0's
+        self.cumulative_rewards_testing.pop()
+        self.steps_per_episode_testing.pop()
+        self.lines_sent_per_episode_testing.pop()
+        self.lines_cleared_per_episode_testing.pop()
         # reset the environment to continue clean
         self.env.reset()
         # reset the exploration rate
@@ -555,7 +560,12 @@ class AgentSCFixedTarget(object):
                     self.steps_per_episode_testing.append(0)
                     self.lines_sent_per_episode_testing.append(0)
                     self.lines_cleared_per_episode_testing.append(0)
-
+        
+        #Remove padded 0's
+        self.cumulative_rewards_testing.pop()
+        self.steps_per_episode_testing.pop()
+        self.lines_sent_per_episode_testing.pop()
+        self.lines_cleared_per_episode_testing.pop()
         # reset the environment to continue clean
         self.env.reset()
         # reset the exploration rate
@@ -859,6 +869,12 @@ class AgentDoubleSC(object):
                     self.steps_per_episode_testing.append(0)
                     self.lines_sent_per_episode_testing.append(0)
                     self.lines_cleared_per_episode_testing.append(0)
+        
+        #Remove padded 0's
+        self.cumulative_rewards_testing.pop()
+        self.steps_per_episode_testing.pop()
+        self.lines_sent_per_episode_testing.pop()
+        self.lines_cleared_per_episode_testing.pop()
 
         # reset the environment to continue clean
         self.env.reset()
