@@ -228,11 +228,11 @@ class AgentSC(object):
         # we do not need to compute gradients for this part
         with torch.no_grad():
             # initialize the total size of history we need to get
-            total_episodes = episodes + len(self.episode_testing)
+            total_episodes = episodes + self.episode_testing
             # initialize a counter to keep track of how long testing runs
             i = 0
             # repeats the algorithm steps times
-            while len(self.episode_testing) < total_episodes:
+            while self.episode_testing < total_episodes:
                 # record the step
                 if i % 1000 == 0: print("calculating step", i)
                 i += 1
@@ -530,11 +530,11 @@ class AgentSCFixedTarget(object):
         # we do not need to compute gradients for this part
         with torch.no_grad():
             # initialize the total size of history we need to get
-            total_episodes = episodes + len(self.episode_testing)
+            total_episodes = episodes + self.episode_testing
             # initialize a counter to keep track of how long testing runs
             i = 0
             # repeats the algorithm steps times
-            while len(self.episode_testing) < total_episodes:
+            while self.episode_testing < total_episodes:
                 # record the step
                 if i % 1000 == 0: print("calculating step", i)
                 i += 1
@@ -834,11 +834,11 @@ class AgentDoubleSC(object):
         # we do not need to compute gradients for this part
         with torch.no_grad():
             # initialize the total size of history we need to get
-            total_episodes = episodes + len(self.episode_testing)
+            total_episodes = episodes + self.episode_testing
             # initialize a counter to keep track of how long testing runs
             i = 0
             # repeats the algorithm steps times
-            while len(self.episode_testing) < total_episodes:
+            while self.episode_testing < total_episodes:
                 # record the step
                 if i % 1000 == 0: print("calculating step", i)
                 i += 1
