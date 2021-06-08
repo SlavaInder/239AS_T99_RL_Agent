@@ -53,9 +53,9 @@ class FCBoardNet(nn.Module):
 
         return q
 
-#I copied these in from multiplayer, figure they would be necessary soon: -Ian
 
 class FCNetMultiplayer(nn.Module):
+    # I copied these in from multiplayer, figure they would be necessary soon: -Ian
     def __init__(self, num_players):
         super(FCNetMultiplayer, self).__init__()
 
@@ -89,12 +89,13 @@ class FCNetMultiplayer(nn.Module):
     
         return x
 
+
 class FCNetTransfer(nn.Module):
     def __init__(self, num_players, checkpoint):
         super(FCNetTransfer, self).__init__()
         # checkpoint should be a checkpoint with at least:
-            # "primary_net_state"
-        #You can get a checkpoint by doing:  torch.load('model_path.pth')
+        # "primary_net_state"
+        # You can get a checkpoint by doing:  torch.load('model_path.pth')
         # See how states are saved in Agent.py functions "save_state()" if confused  
 
         self.layer1 = nn.Sequential(nn.Linear(4, 64), nn.ReLU(inplace=True))

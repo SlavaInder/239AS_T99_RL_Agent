@@ -114,7 +114,8 @@ class AgentSC(object):
 
         return options[index]
 
-    def train(self, batch_size=128, update_freq=2000, steps=10000, npc_update_freq=5000, agent_save_path=None, image_save_path=None, episode_to_save=0):
+    def train(self, batch_size=128, update_freq=2000, steps=10000, npc_update_freq=5000, agent_save_path=None,
+              image_save_path=None, episode_to_save=0):
         '''
         Trains the agent by following DQN with fixed target
         '''
@@ -202,18 +203,19 @@ class AgentSC(object):
                 # update weights
                 self.env.enemy.update(self.primary_net.state_dict())
             
-            #Save the network if user wants to and it has achieved the best reward thus far
+            # Save the network if user wants to and it has achieved the best reward thus far
             if reward > self.best_reward_achieved:
                 self.best_reward_achieved = reward
-                if agent_save_path != None:
+                if agent_save_path is not None:
                     self.save_state(agent_save_path)
             
-            #Save the image if the user wants
-            if image_save_path != None and (episode_to_save == self.episode or (episode_to_save == self.episode + 1 and done)):
+            # Save the image if the user wants
+            if image_save_path is not None and \
+                    (episode_to_save == self.episode or (episode_to_save == self.episode + 1 and done)):
                 full_path = path.join(image_save_path, "step{}.png".format(i))
                 self.env.render(mode="human",image_path=full_path)
 
-    def test(self, steps=10000):
+    def test(self, episodes=50):
         """
         Evaluates algorithm
         """
@@ -225,10 +227,15 @@ class AgentSC(object):
         self.exploration_rate = 0
         # we do not need to compute gradients for this part
         with torch.no_grad():
+            # initialize the total size of history we need to get
+            total_episodes = episodes + self.episode_testing
+            # initialize a counter to keep track of how long testing runs
+            i = 0
             # repeats the algorithm steps times
-            for i in range(steps):
+            while self.episode_testing < total_episodes:
                 # record the step
                 if i % 1000 == 0: print("calculating step", i)
+                i += 1
                 # get features for the s(t)
                 s_t_features = self.get_features(self.env.state)
                 # make an action, record the reward and check whether environment is done
@@ -402,7 +409,8 @@ class AgentSCFixedTarget(object):
 
         return options[index]
 
-    def train(self, batch_size=128, update_freq=2000, steps=10000, npc_update_freq=5000, agent_save_path=None, image_save_path=None, episode_to_save=0):
+    def train(self, batch_size=128, update_freq=2000, steps=10000, npc_update_freq=5000, agent_save_path=None,
+              image_save_path=None, episode_to_save=0):
         '''
         Trains the agent by following DQN with fixed target
         '''
@@ -497,18 +505,19 @@ class AgentSCFixedTarget(object):
                 # update weights
                 self.env.enemy.update(self.primary_net.state_dict())
             
-            #Save the network if user wants to and it has achieved the best reward thus far
+            # Save the network if user wants to and it has achieved the best reward thus far
             if reward > self.best_reward_achieved:
                 self.best_reward_achieved = reward
                 if agent_save_path != None:
                     self.save_state(agent_save_path)
             
-            #Save the image if the user wants
-            if image_save_path != None and (episode_to_save == self.episode or (episode_to_save == self.episode + 1 and done)):
+            # Save the image if the user wants
+            if image_save_path != None and \
+                    (episode_to_save == self.episode or (episode_to_save == self.episode + 1 and done)):
                 full_path = path.join(image_save_path, "step{}.png".format(i))
                 self.env.render(mode="human",image_path=full_path)
 
-    def test(self, steps=10000):
+    def test(self, episodes=50):
         """
         Evaluates algorithm
         """
@@ -520,10 +529,15 @@ class AgentSCFixedTarget(object):
         self.exploration_rate = 0
         # we do not need to compute gradients for this part
         with torch.no_grad():
+            # initialize the total size of history we need to get
+            total_episodes = episodes + self.episode_testing
+            # initialize a counter to keep track of how long testing runs
+            i = 0
             # repeats the algorithm steps times
-            for i in range(steps):
+            while self.episode_testing < total_episodes:
                 # record the step
                 if i % 1000 == 0: print("calculating step", i)
+                i += 1
                 # get features for the s(t)
                 s_t_features = self.get_features(self.env.state)
                 # make an action, record the reward and check whether environment is done
@@ -699,7 +713,8 @@ class AgentDoubleSC(object):
 
         return options[index]
 
-    def train(self, batch_size=128, update_freq=2000, steps=10000, npc_update_freq=5000, agent_save_path=None, image_save_path=None, episode_to_save=0):
+    def train(self, batch_size=128, update_freq=2000, steps=10000, npc_update_freq=5000, agent_save_path=None,
+              image_save_path=None, episode_to_save=0):
         '''
         Trains the agent by following Double DQN-learning algorithm
         '''
@@ -801,11 +816,12 @@ class AgentDoubleSC(object):
                     self.save_state(agent_save_path)
             
             #Save the image if the user wants
-            if image_save_path != None and (episode_to_save == self.episode or (episode_to_save == self.episode + 1 and done)):
+            if image_save_path != None and \
+                    (episode_to_save == self.episode or (episode_to_save == self.episode + 1 and done)):
                 full_path = path.join(image_save_path, "step{}.png".format(i))
                 self.env.render(mode="human",image_path=full_path)
 
-    def test(self, steps=10000):
+    def test(self, episodes=50):
         """
         Evaluates algorithm
         """
@@ -817,10 +833,15 @@ class AgentDoubleSC(object):
         self.exploration_rate = 0
         # we do not need to compute gradients for this part
         with torch.no_grad():
+            # initialize the total size of history we need to get
+            total_episodes = episodes + self.episode_testing
+            # initialize a counter to keep track of how long testing runs
+            i = 0
             # repeats the algorithm steps times
-            for i in range(steps):
+            while self.episode_testing < total_episodes:
                 # record the step
                 if i % 1000 == 0: print("calculating step", i)
+                i += 1
                 # get features for the s(t)
                 s_t_features = self.get_features(self.env.state)
                 # make an action, record the reward and check whether environment is done
