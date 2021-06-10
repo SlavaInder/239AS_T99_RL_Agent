@@ -412,7 +412,7 @@ class AgentSCFixedTarget(object):
         return options[index]
 
     def train(self, batch_size=128, update_freq=2000, steps=10000, npc_update_freq=5000, agent_save_path=None,
-              image_save_path=None, episode_to_save=0):
+              image_save_path=None, episode_to_save=0, update_npc=True):
         '''
         Trains the agent by following DQN with fixed target
         '''
