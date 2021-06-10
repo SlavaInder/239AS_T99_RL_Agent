@@ -81,7 +81,7 @@ class AgentSC(object):
             # get features for all next states
             feats = []
             for i in range(len(rewards)):
-                feats.append(torch.from_numpy(self.get_features(options[i])))
+                feats.append(torch.from_numpy(self.get_features(options[i],0)))
             # then stack all possible net states into one tensor and send it to the GPU
             next_states = torch.stack(feats).type(torch.FloatTensor).to(self.device)
             # calculate predictions on the whole stack using primary net (see algorithm)
@@ -104,7 +104,7 @@ class AgentSC(object):
         # get features for all next states
         feats = []
         for i in range(len(rewards)):
-            feats.append(torch.from_numpy(self.get_features(options[i])))
+            feats.append(torch.from_numpy(self.get_features(options[i],0)))
         # then stack all possible next states into one tensor and send it to the GPU
         next_states = torch.stack(feats).type(torch.FloatTensor).to(self.device)
         # calculate predictions on the whole stack using target net (see algorithm)
@@ -124,18 +124,18 @@ class AgentSC(object):
             # record the step
             if i % 500 == 0: print("calculating step", i)
             # get features for the s(t)
-            s_t_features = self.get_features(self.env.state)
+            s_t_features = self.get_features(self.env.state,0)
             # make an action, record the reward and check whether environment is done
             reward, done, statistics = self.act()
             # get features for the s(t+1)
-            s_t_1_features = self.get_features(self.env.state)
+            s_t_1_features = self.get_features(self.env.state,0)
             # initialize empty s(t+2)
             s_t_2_features = None
             # if the environment has not finished
             if not done:
                 # find and record optimal action a*=s*(t+2)=argmax{Q'[s(t+1), a=s(t+2)]} according to the target net
                 s_t_2 = self.optimal_action()
-                s_t_2_features = self.get_features(s_t_2)
+                s_t_2_features = self.get_features(s_t_2,0)
             # record the current state, reward, next state, done in the cyclic buffer for future replay
             self.add_to_memory(s_t_features, s_t_1_features, s_t_2_features, reward, done)
             # record cumulative reward, steps, lines cleared and lines sent in the current episode
@@ -211,7 +211,7 @@ class AgentSC(object):
             
             # Save the image if the user wants
             if image_save_path is not None and \
-                    (episode_to_save == self.episode or (episode_to_save == self.episode + 1 and done)):
+                    (episode_to_save == self.episode_training or (episode_to_save == self.episode_training + 1 and done)):
                 full_path = path.join(image_save_path, "step{}.png".format(i))
                 self.env.render(mode="human",image_path=full_path)
 
@@ -237,7 +237,7 @@ class AgentSC(object):
                 if i % 1000 == 0: print("calculating step", i)
                 i += 1
                 # get features for the s(t)
-                s_t_features = self.get_features(self.env.state)
+                s_t_features = self.get_features(self.env.state,0)
                 # make an action, record the reward and check whether environment is done
                 reward, done, statistics = self.act()
                 # record cumulative reward, steps, lines cleared and lines sent in the current episode
@@ -253,12 +253,7 @@ class AgentSC(object):
                     self.steps_per_episode_testing.append(0)
                     self.lines_sent_per_episode_testing.append(0)
                     self.lines_cleared_per_episode_testing.append(0)
-        
-        #Remove padded 0's
-        self.cumulative_rewards_testing.pop()
-        self.steps_per_episode_testing.pop()
-        self.lines_sent_per_episode_testing.pop()
-        self.lines_cleared_per_episode_testing.pop()
+
         # reset the environment to continue clean
         self.env.reset()
         # reset the exploration rate
@@ -286,7 +281,7 @@ class AgentSC(object):
 
     def load_state(self,path,net_only=False):
         # Don't forget to do .eval() or .train() now!
-        checkpoint = torch.load(path, map_location=torch.device(self.device))
+        checkpoint = torch.load(path)
         self.primary_net.load_state_dict(checkpoint['primary_net_state'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         if not net_only:
@@ -381,11 +376,12 @@ class AgentSCFixedTarget(object):
             # get features for all next states
             feats = []
             for i in range(len(rewards)):
-                feats.append(torch.from_numpy(self.get_features(options[i])))
+                feats.append(torch.from_numpy(self.get_features(options[i],0)))
             # then stack all possible net states into one tensor and send it to the GPU
             next_states = torch.stack(feats).type(torch.FloatTensor).to(self.device)
             # calculate predictions on the whole stack using primary net (see algorithm)
             predictions = self.primary_net(next_states)[:, 0]
+    
             # choose greedy action
             index = torch.argmax(predictions).item()
         # now make a step according with a selected action, and record the reward
@@ -404,7 +400,7 @@ class AgentSCFixedTarget(object):
         # get features for all next states
         feats = []
         for i in range(len(rewards)):
-            feats.append(torch.from_numpy(self.get_features(options[i])))
+            feats.append(torch.from_numpy(self.get_features(options[i],0)))
         # then stack all possible next states into one tensor and send it to the GPU
         next_states = torch.stack(feats).type(torch.FloatTensor).to(self.device)
         # calculate predictions on the whole stack using target net (see algorithm)
@@ -424,18 +420,18 @@ class AgentSCFixedTarget(object):
             # record the step
             if i % 500 == 0: print("calculating step", i)
             # get features for the s(t)
-            s_t_features = self.get_features(self.env.state)
+            s_t_features = self.get_features(self.env.state,0)
             # make an action, record the reward and check whether environment is done
             reward, done, statistics = self.act()
             # get features for the s(t+1)
-            s_t_1_features = self.get_features(self.env.state)
+            s_t_1_features = self.get_features(self.env.state,0)
             # initialize empty s(t+2)
             s_t_2_features = None
             # if the environment has not finished
             if not done:
                 # find and record optimal action a*=s*(t+2)=argmax{Q'[s(t+1), a=s(t+2)]} according to the target net
                 s_t_2 = self.optimal_action()
-                s_t_2_features = self.get_features(s_t_2)
+                s_t_2_features = self.get_features(s_t_2,0)
             # record the current state, reward, next state, done in the cyclic buffer for future replay
             self.add_to_memory(s_t_features, s_t_1_features, s_t_2_features, reward, done)
             # record cumulative reward, steps, lines cleared and lines sent in the current episode
@@ -473,12 +469,13 @@ class AgentSCFixedTarget(object):
                     if not batch[j][4]:
                         batch_s_t_2.append(torch.tensor(batch[j][2]))
                         batch_s_t_2_idx.append(j)
-                # stack tensors and send them to GPU
+                # stack tensors and send them to GPU    
                 torch_s_t_1 = torch.stack(batch_s_t_1).type(torch.FloatTensor).to(self.device)
                 torch_rewards = torch.stack(batch_rewards).type(torch.FloatTensor).to(self.device)
                 torch_s_t_2 = torch.stack(batch_s_t_2).type(torch.FloatTensor).to(self.device)
                 # get the expected score for the s(t+2) using primary net
                 q_s_t_2_dense = self.target_net(torch_s_t_2)[:, 0]
+                
                 # their order is not the same as in the batch, so we need to rearrange it
                 q_s_t_2_sparse = torch.zeros(batch_size)
                 for j in range(len(batch_s_t_2_idx)):
@@ -488,6 +485,7 @@ class AgentSCFixedTarget(object):
                 # calculate target
                 y_i = q_s_t_2_sparse + torch.tensor(self.discount).type(torch.FloatTensor).to(self.device)*torch_rewards
                 # get the expected score for the s(t+1) using primary net
+
                 q_current = self.primary_net(torch_s_t_1)[:, 0]
 
                 # Fit the model to the given values
@@ -518,7 +516,7 @@ class AgentSCFixedTarget(object):
             
             # Save the image if the user wants
             if image_save_path != None and \
-                    (episode_to_save == self.episode or (episode_to_save == self.episode + 1 and done)):
+                    (episode_to_save == self.episode_training or (episode_to_save == self.episode_training + 1 and done)):
                 full_path = path.join(image_save_path, "step{}.png".format(i))
                 self.env.render(mode="human",image_path=full_path)
 
@@ -544,7 +542,7 @@ class AgentSCFixedTarget(object):
                 if i % 1000 == 0: print("calculating step", i)
                 i += 1
                 # get features for the s(t)
-                s_t_features = self.get_features(self.env.state)
+                s_t_features = self.get_features(self.env.state,0)
                 # make an action, record the reward and check whether environment is done
                 reward, done, statistics = self.act()
                 # record cumulative reward, steps, lines cleared and lines sent in the current episode
@@ -560,12 +558,7 @@ class AgentSCFixedTarget(object):
                     self.steps_per_episode_testing.append(0)
                     self.lines_sent_per_episode_testing.append(0)
                     self.lines_cleared_per_episode_testing.append(0)
-        
-        #Remove padded 0's
-        self.cumulative_rewards_testing.pop()
-        self.steps_per_episode_testing.pop()
-        self.lines_sent_per_episode_testing.pop()
-        self.lines_cleared_per_episode_testing.pop()
+
         # reset the environment to continue clean
         self.env.reset()
         # reset the exploration rate
@@ -594,7 +587,7 @@ class AgentSCFixedTarget(object):
 
     def load_state(self,path,net_only=False):
         # Don't forget to do .eval() or .train() now!
-        checkpoint = torch.load(path, map_location=torch.device(self.device))
+        checkpoint = torch.load(path)
         self.primary_net.load_state_dict(checkpoint['primary_net_state'])
         self.target_net.load_state_dict(checkpoint['target_net_state'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -690,7 +683,7 @@ class AgentDoubleSC(object):
             # get features for all next states
             feats = []
             for i in range(len(rewards)):
-                feats.append(torch.from_numpy(self.get_features(options[i])))
+                feats.append(torch.from_numpy(self.get_features(options[i],0)))
             # then stack all possible net states into one tensor and send it to the GPU
             next_states = torch.stack(feats).type(torch.FloatTensor).to(self.device)
             # calculate predictions on the whole stack using primary net (see algorithm)
@@ -713,7 +706,7 @@ class AgentDoubleSC(object):
         # get features for all next states
         feats = []
         for i in range(len(rewards)):
-            feats.append(torch.from_numpy(self.get_features(options[i])))
+            feats.append(torch.from_numpy(self.get_features(options[i],0)))
         # then stack all possible next states into one tensor and send it to the GPU
         next_states = torch.stack(feats).type(torch.FloatTensor).to(self.device)
         # calculate predictions on the whole stack using target net (see algorithm)
@@ -733,18 +726,18 @@ class AgentDoubleSC(object):
             # record the step
             if i % 500 == 0: print("calculating step", i)
             # get features for the s(t)
-            s_t_features = self.get_features(self.env.state)
+            s_t_features = self.get_features(self.env.state,0)
             # make an action, record the reward and check whether environment is done
             reward, done, statistics = self.act()
             # get features for the s(t+1)
-            s_t_1_features = self.get_features(self.env.state)
+            s_t_1_features = self.get_features(self.env.state,0)
             # initialize empty s(t+2)
             s_t_2_features = None
             # if the environment has not finished
             if not done:
                 # find and record optimal action a*=s*(t+2)=argmax{Q'[s(t+1), a=s(t+2)]} according to the target net
                 s_t_2 = self.optimal_action()
-                s_t_2_features = self.get_features(s_t_2)
+                s_t_2_features = self.get_features(s_t_2,0)
             # record the current state, reward, next state, done in the cyclic buffer for future replay
             self.add_to_memory(s_t_features, s_t_1_features, s_t_2_features, reward, done)
             # record cumulative reward, steps, lines cleared and lines sent in the current episode
@@ -827,7 +820,7 @@ class AgentDoubleSC(object):
             
             #Save the image if the user wants
             if image_save_path != None and \
-                    (episode_to_save == self.episode or (episode_to_save == self.episode + 1 and done)):
+                    (episode_to_save == self.episode_training or (episode_to_save == self.episode_training + 1 and done)):
                 full_path = path.join(image_save_path, "step{}.png".format(i))
                 self.env.render(mode="human",image_path=full_path)
 
@@ -853,7 +846,7 @@ class AgentDoubleSC(object):
                 if i % 1000 == 0: print("calculating step", i)
                 i += 1
                 # get features for the s(t)
-                s_t_features = self.get_features(self.env.state)
+                s_t_features = self.get_features(self.env.state,0)
                 # make an action, record the reward and check whether environment is done
                 reward, done, statistics = self.act()
                 # record cumulative reward, steps, lines cleared and lines sent in the current episode
@@ -869,12 +862,6 @@ class AgentDoubleSC(object):
                     self.steps_per_episode_testing.append(0)
                     self.lines_sent_per_episode_testing.append(0)
                     self.lines_cleared_per_episode_testing.append(0)
-        
-        #Remove padded 0's
-        self.cumulative_rewards_testing.pop()
-        self.steps_per_episode_testing.pop()
-        self.lines_sent_per_episode_testing.pop()
-        self.lines_cleared_per_episode_testing.pop()
 
         # reset the environment to continue clean
         self.env.reset()
@@ -904,7 +891,7 @@ class AgentDoubleSC(object):
 
     def load_state(self,path,net_only=False):
         # Don't forget to do .eval() or .train() now!
-        checkpoint = torch.load(path,map_location=torch.device(self.device))
+        checkpoint = torch.load(path)
         self.primary_net.load_state_dict(checkpoint['primary_net_state'])
         self.target_net.load_state_dict(checkpoint['target_net_state'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])

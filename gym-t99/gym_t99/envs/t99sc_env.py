@@ -83,7 +83,7 @@ class T99SC(gym.Env):
                 # observe which action an npc can take
                 npc_options, _, _ = self._observe(i)
                 # choose the best action
-                npc_action = self.enemy.action(npc_options)
+                npc_action = self.enemy.action(npc_options,i)
                 # register the npc's step and event queue it created
                 next_states[i] = npc_action.players[i]
                 self.state.event_queue.extend(npc_action.event_queue)

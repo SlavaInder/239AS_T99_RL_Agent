@@ -55,7 +55,6 @@ class FCBoardNet(nn.Module):
 
 
 class FCNetMultiplayer(nn.Module):
-    # I copied these in from multiplayer, figure they would be necessary soon: -Ian
     def __init__(self, num_players):
         super(FCNetMultiplayer, self).__init__()
 
@@ -76,7 +75,9 @@ class FCNetMultiplayer(nn.Module):
                 nn.init.xavier_uniform_(m.weight)
                 nn.init.constant_(m.bias, 0)
 
-    def forward(self, x1, x2):
+    def forward(self, x):
+        x1, x2 = torch.split(x, [4,x.shape[1]-4], dim=1) #Split up our features and the opponents'
+       
         x1 = self.layer1(x1)
         x1 = self.layer2(x1)
         
@@ -124,7 +125,9 @@ class FCNetTransfer(nn.Module):
                 nn.init.xavier_uniform_(m.weight)
                 nn.init.constant_(m.bias, 0)
 
-    def forward(self, x1, x2):
+    def forward(self, x):
+        x1, x2 = torch.split(x, [4,x.shape[1]-4], dim=1) #Split up our features and the opponents'
+       
         x1 = self.layer1(x1)
         x1 = self.layer2(x1)
         
@@ -133,6 +136,6 @@ class FCNetTransfer(nn.Module):
 
         combined = torch.cat((x1, x2), dim=1)
         x = self.final_layer1(combined)
-        x = self.layer3(x)
+        x = self.final_layer2(x)
     
         return x
