@@ -9,7 +9,7 @@ class CNN(nn.Module):
         self.conv1 = nn.Conv2d(1, 3, kernel_size=3)
         # input 18 x 8 x 3, output 14 x 4 x 6
         self.conv2 = nn.Conv2d(3, 6, kernel_size=5)
-        # input 14 x 4 x 9, output 11 x 1 x 9
+        # input 14 x 4 x 6, output 11 x 1 x 9
         self.conv3 = nn.Conv2d(6, 9, kernel_size=4)
         # input 99, output 1
         self.linear1 = nn.Sequential(nn.Linear(99, 1))
@@ -46,7 +46,7 @@ class ExtendedCNN(nn.Module):
         self.conv1 = nn.Conv2d(1, 3, kernel_size=3)
         # input 18 x 8 x 3, output 14 x 4 x 6
         self.conv2 = nn.Conv2d(3, 6, kernel_size=5)
-        # input 14 x 4 x 9, output 11 x 1 x 9
+        # input 14 x 4 x 6, output 11 x 1 x 9
         self.conv3 = nn.Conv2d(6, 9, kernel_size=4)
         # init model for board
         self.board_model = nn.Sequential(

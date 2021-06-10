@@ -20,12 +20,12 @@ class StandardNPC(object):
         # choose a function to extract features
         self.get_features = features
 
-    def action(self, options):
+    def action(self, options, player_id):
         # standard npc always chooses a greedy actions from the options it has
         # get features for all next states
         feats = []
         for i in range(len(options)):
-            feats.append(torch.from_numpy(self.get_features(options[i])))
+            feats.append(torch.from_numpy(self.get_features(options[i],player_id)))
         # then stack all possible net states into one tensor and send it to the GPU
         next_states = torch.stack(feats).type(torch.FloatTensor).to(self.device)
         # calculate predictions on the whole stack using primary net (see algorithm)
