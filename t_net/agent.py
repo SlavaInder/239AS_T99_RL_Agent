@@ -115,7 +115,7 @@ class AgentSC(object):
         return options[index]
 
     def train(self, batch_size=128, update_freq=2000, steps=10000, npc_update_freq=5000, agent_save_path=None,
-              image_save_path=None, episode_to_save=0):
+              image_save_path=None, episode_to_save=0, update_npc=True):
         '''
         Trains the agent by following DQN with fixed target
         '''
@@ -197,7 +197,7 @@ class AgentSC(object):
                 self.optimizer.step()
 
             # if there is more than one player and it's time to update npc
-            if len(self.env.state.players) > 1 and i % npc_update_freq == 0:
+            if len(self.env.state.players) > 1 and i % npc_update_freq == 0 and i > 0 and update_npc:
                 # pop up a message
                 print("npc net updated")
                 # update weights
@@ -211,7 +211,8 @@ class AgentSC(object):
             
             # Save the image if the user wants
             if image_save_path is not None and \
-                    (episode_to_save == self.episode_training or (episode_to_save == self.episode_training + 1 and done)):
+                    (episode_to_save == self.episode_training or
+                     (episode_to_save == self.episode_training + 1 and done)):
                 full_path = path.join(image_save_path, "step{}.png".format(i))
                 self.env.render(mode="human",image_path=full_path)
 
@@ -279,7 +280,7 @@ class AgentSC(object):
             'lines_cleared_per_episode_testing': self.lines_cleared_per_episode_testing,
         }, path)
 
-    def load_state(self,path,net_only=False):
+    def load_state(self, path, net_only=False):
         # Don't forget to do .eval() or .train() now!
         checkpoint = torch.load(path)
         self.primary_net.load_state_dict(checkpoint['primary_net_state'])
@@ -317,7 +318,7 @@ class AgentSCFixedTarget(object):
         mem_size (int):                 size of the cyclic buffer that records actions
     '''
     def __init__(self, env, discount, net, learning_rate, criterion, device, features, exploration_rate=0.1,
-                 mem_size=10000):
+                 mem_size=10000, update_npc=True):
 
         # memory is a cyclic buffer
         self.memory = deque(maxlen=mem_size)
@@ -376,7 +377,7 @@ class AgentSCFixedTarget(object):
             # get features for all next states
             feats = []
             for i in range(len(rewards)):
-                feats.append(torch.from_numpy(self.get_features(options[i],0)))
+                feats.append(torch.from_numpy(self.get_features(options[i], 0)))
             # then stack all possible net states into one tensor and send it to the GPU
             next_states = torch.stack(feats).type(torch.FloatTensor).to(self.device)
             # calculate predictions on the whole stack using primary net (see algorithm)
@@ -502,7 +503,7 @@ class AgentSCFixedTarget(object):
                 self.target_net.load_state_dict(self.primary_net.state_dict())
 
             # if there is more than one player and it's time to update npc
-            if len(self.env.state.players) > 1 and i % npc_update_freq == 0:
+            if len(self.env.state.players) > 1 and i % npc_update_freq == 0 and i > 0 and update_npc:
                 # pop up a message
                 print("npc net updated")
                 # update weights
@@ -511,14 +512,15 @@ class AgentSCFixedTarget(object):
             # Save the network if user wants to and it has achieved the best reward thus far
             if reward > self.best_reward_achieved:
                 self.best_reward_achieved = reward
-                if agent_save_path != None:
+                if agent_save_path is not None:
                     self.save_state(agent_save_path)
             
             # Save the image if the user wants
-            if image_save_path != None and \
-                    (episode_to_save == self.episode_training or (episode_to_save == self.episode_training + 1 and done)):
+            if image_save_path is not None and \
+                    (episode_to_save == self.episode_training or
+                     (episode_to_save == self.episode_training + 1 and done)):
                 full_path = path.join(image_save_path, "step{}.png".format(i))
-                self.env.render(mode="human",image_path=full_path)
+                self.env.render(mode="human", image_path=full_path)
 
     def test(self, episodes=50):
         """
@@ -542,7 +544,7 @@ class AgentSCFixedTarget(object):
                 if i % 1000 == 0: print("calculating step", i)
                 i += 1
                 # get features for the s(t)
-                s_t_features = self.get_features(self.env.state,0)
+                s_t_features = self.get_features(self.env.state, 0)
                 # make an action, record the reward and check whether environment is done
                 reward, done, statistics = self.act()
                 # record cumulative reward, steps, lines cleared and lines sent in the current episode
@@ -585,7 +587,7 @@ class AgentSCFixedTarget(object):
             'lines_cleared_per_episode_testing': self.lines_cleared_per_episode_testing,
         }, path)
 
-    def load_state(self,path,net_only=False):
+    def load_state(self, path, net_only=False):
         # Don't forget to do .eval() or .train() now!
         checkpoint = torch.load(path)
         self.primary_net.load_state_dict(checkpoint['primary_net_state'])
@@ -624,7 +626,8 @@ class AgentDoubleSC(object):
         mem_size (int):                 size of the cyclic buffer that records actions
     '''
 
-    def __init__(self, env, discount, net, learning_rate, criterion, device, features, exploration_rate=0.1, mem_size=10000):
+    def __init__(self, env, discount, net, learning_rate, criterion, device, features, exploration_rate=0.1,
+                 mem_size=10000):
 
         # memory is a cyclic buffer
         self.memory = deque(maxlen=mem_size)
@@ -683,7 +686,7 @@ class AgentDoubleSC(object):
             # get features for all next states
             feats = []
             for i in range(len(rewards)):
-                feats.append(torch.from_numpy(self.get_features(options[i],0)))
+                feats.append(torch.from_numpy(self.get_features(options[i], 0)))
             # then stack all possible net states into one tensor and send it to the GPU
             next_states = torch.stack(feats).type(torch.FloatTensor).to(self.device)
             # calculate predictions on the whole stack using primary net (see algorithm)
@@ -717,7 +720,7 @@ class AgentDoubleSC(object):
         return options[index]
 
     def train(self, batch_size=128, update_freq=2000, steps=10000, npc_update_freq=5000, agent_save_path=None,
-              image_save_path=None, episode_to_save=0):
+              image_save_path=None, episode_to_save=0, update_npc=True):
         '''
         Trains the agent by following Double DQN-learning algorithm
         '''
@@ -806,23 +809,24 @@ class AgentDoubleSC(object):
                 self.target_net.load_state_dict(self.primary_net.state_dict())
 
             # if there is more than one player and it's time to update npc
-            if len(self.env.state.players) > 1 and i % npc_update_freq == 0:
+            if len(self.env.state.players) > 1 and i % npc_update_freq == 0 and i > 0 and update_npc:
                 # pop up a message
                 print("npc net updated")
                 # update weights
                 self.env.enemy.update(self.primary_net.state_dict())
             
-            #Save the network if user wants to and it has achieved the best reward thus far
+            # Save the network if user wants to and it has achieved the best reward thus far
             if reward > self.best_reward_achieved:
                 self.best_reward_achieved = reward
-                if agent_save_path != None:
+                if agent_save_path is not None:
                     self.save_state(agent_save_path)
             
-            #Save the image if the user wants
-            if image_save_path != None and \
-                    (episode_to_save == self.episode_training or (episode_to_save == self.episode_training + 1 and done)):
+            # Save the image if the user wants
+            if image_save_path is not None and \
+                    (episode_to_save == self.episode_training or
+                     (episode_to_save == self.episode_training + 1 and done)):
                 full_path = path.join(image_save_path, "step{}.png".format(i))
-                self.env.render(mode="human",image_path=full_path)
+                self.env.render(mode="human", image_path=full_path)
 
     def test(self, episodes=50):
         """
@@ -868,7 +872,7 @@ class AgentDoubleSC(object):
         # reset the exploration rate
         self.exploration_rate = exploration_rate_memory
 
-    def save_state(self,path):
+    def save_state(self, path):
         torch.save({
             'primary_net_state': self.primary_net.state_dict(),
             'target_net_state': self.target_net.state_dict(),
@@ -889,7 +893,7 @@ class AgentDoubleSC(object):
             'lines_cleared_per_episode_testing': self.lines_cleared_per_episode_testing,
             }, path)
 
-    def load_state(self,path,net_only=False):
+    def load_state(self, path, net_only=False):
         # Don't forget to do .eval() or .train() now!
         checkpoint = torch.load(path)
         self.primary_net.load_state_dict(checkpoint['primary_net_state'])
