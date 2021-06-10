@@ -265,7 +265,7 @@ class T99SC(gym.Env):
             # we do not need to update current piece since we already lost, and can directly go to filling "options"
             options[0].append(end_state)
             options[1].append(0)
-            options[0].append({'lines_cleared': 0,
+            options[2].append({'lines_cleared': 0,
                                'lines_sent': 0})
 
         return options
