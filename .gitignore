@@ -44,6 +44,3 @@ name_of_environment/*
 
 #Mac
 *.DS_Store
-
-#Images
-*.png
