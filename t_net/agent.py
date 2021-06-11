@@ -282,7 +282,7 @@ class AgentSC(object):
 
     def load_state(self, path, net_only=False):
         # Don't forget to do .eval() or .train() now!
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path, map_location=torch.device('cpu'))
         self.primary_net.load_state_dict(checkpoint['primary_net_state'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         if not net_only:
@@ -589,7 +589,7 @@ class AgentSCFixedTarget(object):
 
     def load_state(self, path, net_only=False):
         # Don't forget to do .eval() or .train() now!
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path, map_location=torch.device('cpu'))
         self.primary_net.load_state_dict(checkpoint['primary_net_state'])
         self.target_net.load_state_dict(checkpoint['target_net_state'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
