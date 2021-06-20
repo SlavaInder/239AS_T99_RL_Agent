@@ -25,10 +25,10 @@ class T99SC(gym.Env):
         "attack_delay": 5,          # after attack_delay number of steps expires, garbage moves from the queue to the
                                     # board
         "power_multiplier": 0.25,   # bonus strength per ko
-        "r_survive": 0.001,          # the reward for surviving
-        "r_clear_line": 0.05,       # the reward for clearing one line
+        "r_survive": 0.001,         # the reward for surviving
+        "r_clear_line": 0.01,       # the reward for clearing one line
         "r_send_line": 0.02,        # the reward for sending one line of garbage
-        "r_win": 1000               # the reward for winning
+        "r_win": 10                 # the reward for winning
     }
 
     def __init__(self, enemy, num_players=2):
@@ -55,11 +55,11 @@ class T99SC(gym.Env):
 
     """            Public Methods here             """
 
-    def step(self, action):
+    def step(self, action, skip_observation = False):
         """
         the function which makes one update of the environment.
-
         :param dict action: a dictionary with reward, state, and finishing status.
+        ;param bool skip_observation: whether or not we need to output observations for the next step
         :return object observation: a tuple with a list of all possible next states and list of corresponding rewards
         :return float reward: amount of reward achieved by the previous action
         :return boolean done: whether it’s time to reset the environment again, True if the agent loses or wins
@@ -72,7 +72,7 @@ class T99SC(gym.Env):
 
         # process current step
         # init array for states the agent and npc-s will end up after the step finishes
-        next_states = [None for _ in range(len(self.state.players))]
+        next_states = deepcopy(self.state.players)
         # register the agent's step and event queue it created
         next_states[0] = action["state"].players[0]
         self.state.event_queue.extend(action["state"].event_queue)
@@ -81,9 +81,9 @@ class T99SC(gym.Env):
             # if the player is active
             if self.active_players[i]:
                 # observe which action an npc can take
-                npc_options, _ = self._observe(i)
+                npc_options, _, _ = self._observe(i)
                 # choose the best action
-                npc_action = self.enemy.action(npc_options)
+                npc_action = self.enemy.action(npc_options,i)
                 # register the npc's step and event queue it created
                 next_states[i] = npc_action.players[i]
                 self.state.event_queue.extend(npc_action.event_queue)
@@ -94,20 +94,37 @@ class T99SC(gym.Env):
         self._process_event_queue()
         # check who lost during time step
         self._check_kos()
-        # if the agent has lost, stop the game
-        if not self.active_players[0]:
-            done = True
+        # check if or in multiplayer
+        #  the game is in single-player mode
+        if len(self.active_players) == 1:
+            # if the agent has lost, stop the game
+            if not self.active_players[0]:
+                done = True
+            else:
+                done = False
+        # if the game is in multiplayer mode
         else:
-            done = False
+            # if the active player has lost, or it is the last player remaining, stop the game
+            if (not self.active_players[0]) or np.all(self.active_players[1:].astype(int) == 0):
+                done = True
+                # if this is the Agent who survived until the end, add the reward of winning
+                if np.all(self.active_players[1:].astype(int) == 0):
+                    reward += T99SC.settings["r_win"]
+            else:
+                done = False
 
         # if game continues
         if not done:
-            # calculate possible next states
-            observation = self._observe(0)
-            # observation = ([], [])
+            # under normal circumstances, call observation
+            if not skip_observation:
+                # calculate possible next states
+                observation = self._observe(0)
+            # if we want to optimize speed and do not require observation, conduct it
+            else:
+                observation = ([], [], [])
         else:
             # or return empty tuple
-            observation = ([], [])
+            observation = ([], [], [])
 
         return observation, reward, done, info
 
@@ -176,8 +193,8 @@ class T99SC(gym.Env):
                     it moves it by delta x or as far as possible, then drops as far as possible.
                     after that, garbage is added, rows are cleared, reward assigned, garbage is sent, reward assigned,
         """
-        # init the tuple of options, holding next_states and corresponding rewards
-        options = ([], [])
+        # init the tuple of options, holding next_states, corresponding rewards, and the number of lines sent/cleared
+        options = ([], [], [])
         start_state = deepcopy(self.state)
         # align current piece and swap piece
         start_state.players[player_id].piece_current.x = start_state.players[player_id].board.shape[1] // 2
@@ -229,10 +246,27 @@ class T99SC(gym.Env):
                         # append copy and reward to options
                         options[0].append(end_state)
                         options[1].append(reward)
+                        options[2].append({'lines_cleared': num_lines,
+                                           'lines_sent': attack_power})
 
                     # return piece to original place
                     piece.x = start_state.players[player_id].board.shape[1] // 2
                     piece.y = 2
+
+        # If no placement for either a piece or swap piece is valid, the player is about to lose.
+        if len(options[0]) == 0:
+            # init a copy of a state
+            end_state = deepcopy(start_state)
+            # in this case, we need to apply current piece in place with 0 reward and no cleaned lines
+            # it might even overlap with something, but it does not matter since this player will be rendered "failed"
+            # after the step ends.
+            end_state.players[player_id].board = self._apply_piece(end_state.players[player_id].board,
+                                                                   piece)
+            # we do not need to update current piece since we already lost, and can directly go to filling "options"
+            options[0].append(end_state)
+            options[1].append(0)
+            options[2].append({'lines_cleared': 0,
+                               'lines_sent': 0})
 
         return options
 
@@ -242,6 +276,8 @@ class T99SC(gym.Env):
             # send num_lines lines to the target
             for i in range(int(event["num_lines"])):
                 self.state.players[event["target"]].incoming_garbage.append(T99SC.settings["attack_delay"])
+        # reset even queue
+        self.state.event_queue = []
 
     def _check_kos(self):
         # function that updates the list of active players
@@ -263,7 +299,7 @@ class T99SC(gym.Env):
         # converts the number of cleared lines to the number of garbage lines based on player's condition
         b_height, b_width = self.state.players[0].board.shape
         # check if the whole board is cleared
-        if not np.sum(player.board.astype(bool)[5:24, 3:b_width - 3]) > 0:
+        if not np.sum(player.board[6:25, 3:b_width - 3]) > 0:
             # if so, increase the number of lines to send
             lines = 10
         # if not, calculate the number of lines based on table
@@ -281,8 +317,22 @@ class T99SC(gym.Env):
 
     def _post_events(self, state, player_id, attack_strength):
         # for each attack mode, post a corresponding event
-        # check whether the game is in single-player mode, or you are a single survivor
-        if np.sum(self.active_players) > 1:
+        # check if the game is in 2-players mode
+        if len(self.active_players) == 2:
+            # if this is so, just add garbage to the other player; we assume that this is the Agent
+            target = 0
+            # but if it is the agent who attacks, we change idx to the opponent
+            if player_id == 0:
+                target = 1
+            # construct an attack
+            attack_event = {
+                "num_lines": attack_strength,
+                "target": target
+            }
+            # post it
+            state.event_queue.append(attack_event)
+        # else check whether the game is in single-player mode, or you are a single survivor
+        elif np.sum(self.active_players) > 1:
             # init array of players to attack
             idx = []
             # attack the weakest strategy
@@ -406,6 +456,8 @@ class T99SC(gym.Env):
         # choose x that will miss from the garbage
         missing_x = np.random.choice(np.arange(10))
         # update player's board
+        # ensure that no more than 20 lines is sent
+        if total_lines > 20: total_lines = 20
         # first move all existing lines to the top by "total_lines" lines
         player.board[0:25 - total_lines, 3:b_width - 3] = player.board[total_lines:25, 3:b_width - 3]
         # then clear free space

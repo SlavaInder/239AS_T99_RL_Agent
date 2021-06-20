@@ -5,6 +5,8 @@ name_of_environment/*
 */.ipynb_checkpoints/*
 *.pyc
 
+*.zip
+
 # pycharm util files
 *.idea*
 *.idea/*
@@ -44,6 +46,3 @@ name_of_environment/*
 
 #Mac
 *.DS_Store
-
-#Images
-*.png
