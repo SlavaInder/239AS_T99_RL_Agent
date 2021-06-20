@@ -587,7 +587,6 @@ class AgentSCFixedTarget(object):
             'lines_cleared_per_episode_testing': self.lines_cleared_per_episode_testing,
         }, path)
 
-    def load_state(self, path, net_only=False):
         # Don't forget to do .eval() or .train() now!
         checkpoint = torch.load(path, map_location=torch.device('cpu'))
         self.primary_net.load_state_dict(checkpoint['primary_net_state'])
@@ -652,6 +651,7 @@ class AgentDoubleSC(object):
         # send the nets to the device
         self.primary_net.to(device)
         self.target_net.to(device)
+
         # initialize memory for training
         self.cumulative_rewards_training = [0]
         self.steps_per_episode_training = [0]
@@ -807,6 +807,13 @@ class AgentDoubleSC(object):
                 print("target net updated")
                 # update weights
                 self.target_net.load_state_dict(self.primary_net.state_dict())
+            
+            #Save the network if user wants to and it has achieved the best reward thus far
+            if reward > self.best_reward_achieved:
+                self.best_reward_achieved = reward
+                if agent_save_path != None:
+                    self.save_state(agent_save_path)
+
 
             # if there is more than one player and it's time to update npc
             if len(self.env.state.players) > 1 and i % npc_update_freq == 0 and i > 0 and update_npc:
@@ -915,4 +922,4 @@ class AgentDoubleSC(object):
             self.lines_sent_per_episode_testing = checkpoint['lines_sent_per_episode_testing']
             self.lines_cleared_per_episode_testing = checkpoint['lines_cleared_per_episode_testing']
 
-
+            
